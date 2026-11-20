@@ -1,0 +1,21 @@
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { admin } from 'better-auth/plugins';
+import { nextCookies } from 'better-auth/next-js';
+import { db } from '@/db';
+import * as authSchema from '@/db/auth-schema';
+
+export const auth = betterAuth({
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+    schema: authSchema,
+  }),
+  secret: process.env.BETTER_AUTH_SECRET || 'bani-sukar-secret-key-at-least-32-chars-long-2026',
+  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  emailAndPassword: {
+    enabled: true,
+    disableSignUp: true,
+    minPasswordLength: 8,
+  },
+  plugins: [admin(), nextCookies()],
+});
