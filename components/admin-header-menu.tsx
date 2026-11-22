@@ -25,9 +25,9 @@ function getAdminInitials(user: AppSessionUser): string {
   if (nameInitials !== "?") {
     return nameInitials;
   }
-  const emailPrefix = user.email.split("@")[0] ?? "";
-  const emailInitials = getInitials(emailPrefix);
-  return emailInitials !== "?" ? emailInitials : "AD";
+  const usernamePrefix = user.username.split("@")[0] ?? "";
+  const usernameInitials = getInitials(usernamePrefix);
+  return usernameInitials !== "?" ? usernameInitials : "AD";
 }
 
 function AdminInitialsCircle({
@@ -91,7 +91,7 @@ export function AdminHeaderMenu({
               {user.name}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {user.email}
+              {user.username}
             </p>
           </div>
         </div>
@@ -127,7 +127,7 @@ export function AdminHeaderMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`Menu admin ${user.name}`}
-        title={`${user.name} (${user.email})`}
+        title={`${user.name} (${user.username})`}
         className="hidden size-8 cursor-pointer items-center justify-center rounded-full border border-[#cbb4a3] bg-[#efe5dc] text-xs font-semibold tracking-tight text-[#5c3d2e] shadow-xs transition-colors outline-none select-none hover:bg-[#e7d8ca] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:inline-flex"
       >
         {initials}
@@ -140,7 +140,7 @@ export function AdminHeaderMenu({
               {user.name}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {user.email}
+              {user.username}
             </p>
           </div>
         </DropdownMenuLabel>

@@ -78,13 +78,6 @@ async function AnggotaDirectoryContent({
             Kelola seluruh anggota trah, data kelahiran/wafat, serta akses cepat ke penyuntingan relasi silsilah.
           </p>
         </div>
-
-        <Button asChild size="default">
-          <Link href="/admin/anggota/baru">
-            <Plus className="size-4" />
-            + Tambah Anggota
-          </Link>
-        </Button>
       </div>
 
       {/* Summary Strip */}

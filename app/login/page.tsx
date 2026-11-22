@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, TreePine } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Loader2, Lock, ShieldCheck, TreePine, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { loginAction } from '@/features/family/actions';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,9 +23,9 @@ export default function LoginPage() {
     e.preventDefault();
     setErrorMessage(null);
 
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail || !password) {
-      const msg = 'Harap isi email dan kata sandi admin.';
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || !password) {
+      const msg = 'Harap isi username dan kata sandi admin.';
       setErrorMessage(msg);
       toast.error(msg);
       return;
@@ -36,11 +36,11 @@ export default function LoginPage() {
     let authError = '';
 
     try {
-      const res = await loginAction(trimmedEmail, password);
+      const res = await loginAction(trimmedUsername, password);
       if (res.ok) {
         signedIn = true;
       } else {
-        authError = res.error || 'Email atau kata sandi tidak valid.';
+        authError = res.error || 'Username atau kata sandi tidak valid.';
       }
     } catch {
       authError = 'Gagal terhubung ke layanan autentikasi.';
@@ -53,7 +53,7 @@ export default function LoginPage() {
       router.push('/admin/anggota');
       router.refresh();
     } else {
-      const finalMsg = authError || 'Email atau kata sandi salah.';
+      const finalMsg = authError || 'Username atau kata sandi salah.';
       setErrorMessage(finalMsg);
       toast.error(finalMsg);
     }
@@ -104,18 +104,18 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Alamat Email</Label>
+                <Label htmlFor="username">Username</Label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <User className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
+                    id="username"
+                    name="username"
+                    type="text"
+                    autoComplete="username"
                     required
-                    placeholder="admin@banisukar.id"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Masukkan username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="pl-9"
                     disabled={isSubmitting}
                   />

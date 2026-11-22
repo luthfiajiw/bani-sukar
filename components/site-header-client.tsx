@@ -7,7 +7,6 @@ import {
   GitPullRequest,
   Menu,
   Network,
-  Plus,
   ShieldCheck,
   UserPlus,
   Users,
@@ -43,18 +42,6 @@ const NAV_ITEMS = [
     href: "/admin/relasi/root",
     icon: GitPullRequest,
     match: (path: string) => path.startsWith("/admin/relasi"),
-  },
-  {
-    label: "Tambah Anggota",
-    href: "/admin/anggota/baru",
-    icon: UserPlus,
-    match: (path: string) => path === "/admin/anggota/baru",
-  },
-  {
-    label: "Kelola Admin",
-    href: "/admin/pengguna",
-    icon: ShieldCheck,
-    match: (path: string) => path.startsWith("/admin/pengguna"),
   },
 ] as const;
 
@@ -117,14 +104,7 @@ function SiteHeaderShell({
         </nav>
 
         {/* Right actions */}
-        <div className="flex items-center gap-2">
-          <Button asChild size="sm" className="hidden sm:inline-flex">
-            <Link href="/admin/anggota/baru">
-              <Plus className="size-4" />
-              <span>Tambah Jiwa</span>
-            </Link>
-          </Button>
-
+        <div className="flex items-center gap-4">
           {desktopAuthSlot}
 
           {/* Mobile Drawer Trigger */}
@@ -176,15 +156,6 @@ function SiteHeaderShell({
               </div>
 
               <div className="mt-auto flex flex-col gap-2 border-t border-border pt-4">
-                <Button asChild className="w-full justify-center">
-                  <Link
-                    href="/admin/anggota/baru"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <Plus className="size-4" />
-                    <span>+ Tambah Jiwa</span>
-                  </Link>
-                </Button>
                 {mobileAuthSlot}
               </div>
             </SheetContent>

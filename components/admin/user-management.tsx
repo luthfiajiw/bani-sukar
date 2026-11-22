@@ -6,9 +6,9 @@ import {
   KeyRound,
   Loader2,
   LogOut,
-  Mail,
   ShieldCheck,
   Trash2,
+  User,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -65,7 +65,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
   // Add admin dialog state
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
+  const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
@@ -84,8 +84,8 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
       toast.error('Nama admin minimal 2 karakter.');
       return;
     }
-    if (!newEmail.trim()) {
-      toast.error('Alamat email wajib diisi.');
+    if (!newUsername.trim()) {
+      toast.error('Username wajib diisi.');
       return;
     }
     if (newPassword.length < 8) {
@@ -97,7 +97,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
     try {
       const res = await createAdminUserAction({
         name: newName.trim(),
-        email: newEmail.trim(),
+        username: newUsername.trim(),
         password: newPassword,
       });
       if (!res.ok) {
@@ -107,7 +107,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
       toast.success(`Admin "${newName.trim()}" berhasil ditambahkan.`);
       setAddOpen(false);
       setNewName('');
-      setNewEmail('');
+      setNewUsername('');
       setNewPassword('');
       router.refresh();
     } catch {
@@ -199,7 +199,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
                 setAddOpen(next);
                 if (!next) {
                   setNewName('');
-                  setNewEmail('');
+                  setNewUsername('');
                   setNewPassword('');
                 }
               }
@@ -233,13 +233,14 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="admin-email">Alamat Email</Label>
+                  <Label htmlFor="admin-username">Username</Label>
                   <Input
-                    id="admin-email"
-                    type="email"
-                    placeholder="pengurus@banisukar.id"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
+                    id="admin-username"
+                    type="text"
+                    autoComplete="username"
+                    placeholder="cth. tegar_p"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
                     disabled={isAdding}
                     required
                   />
@@ -305,7 +306,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
           <TableHeader>
             <TableRow className="bg-muted/60 hover:bg-muted/60">
               <TableHead>Nama Pengurus</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Username</TableHead>
               <TableHead>Peran</TableHead>
               <TableHead>Terdaftar</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
@@ -338,8 +339,8 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       <span className="inline-flex items-center gap-1.5">
-                        <Mail className="size-3.5" />
-                        {user.email}
+                        <User className="size-3.5" />
+                        {user.username}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -387,7 +388,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Hapus Akun Admin?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Akun <strong>{user.name}</strong> ({user.email}) tidak akan lagi dapat mengakses Portal Admin Bani Sukar.
+                                Akun <strong>{user.name}</strong> ({user.username}) tidak akan lagi dapat mengakses Portal Admin Bani Sukar.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -426,7 +427,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
                       {isSelf && <Badge variant="accent">Anda</Badge>}
                     </CardTitle>
                     <CardDescription className="mt-0.5 text-xs">
-                      {user.email}
+                      {user.username}
                     </CardDescription>
                   </div>
                   <Badge variant="default">
@@ -466,7 +467,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Hapus Akun Admin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Akun <strong>{user.name}</strong> ({user.email}) akan dihapus permanen.
+                          Akun <strong>{user.name}</strong> ({user.username}) akan dihapus permanen.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -504,7 +505,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
             <DialogDescription>
               Masukkan kata sandi baru untuk{' '}
               <strong className="text-foreground">{resetUser?.name}</strong> (
-              {resetUser?.email}).
+              {resetUser?.username}).
             </DialogDescription>
           </DialogHeader>
 

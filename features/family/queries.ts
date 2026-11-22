@@ -55,7 +55,10 @@ export function getFallbackStore(): FamilyFallbackStore {
         {
           id: 'dev-admin',
           name: process.env.SEED_ADMIN_NAME || 'Admin Bani Sukar',
-          email: process.env.SEED_ADMIN_EMAIL || 'admin@banisukar.id',
+          username:
+            process.env.SEED_ADMIN_USERNAME ||
+            process.env.SEED_ADMIN_EMAIL ||
+            'admin@banisukar.id',
           role: 'admin',
           password: process.env.SEED_ADMIN_PASSWORD || 'AdminBaniSukar123!',
           createdAt: '2026-01-01T00:00:00.000Z',

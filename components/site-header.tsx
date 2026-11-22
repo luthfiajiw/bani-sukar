@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { LogIn } from "lucide-react";
+import { LogIn, Plus } from "lucide-react";
 import { getSession, type AppSessionUser } from "@/lib/dal";
 import { cn } from "@/lib/utils";
 import { AdminHeaderMenu } from "@/components/admin-header-menu";
@@ -36,7 +36,17 @@ async function DesktopHeaderAuth() {
     );
   }
 
-  return <AdminHeaderMenu user={adminUser} mode="desktop" />;
+  return (
+    <>
+      <Button asChild size="sm" className="hidden sm:inline-flex">
+        <Link href="/admin/anggota/baru">
+          <Plus className="size-4" />
+          <span>Tambah Jiwa</span>
+        </Link>
+      </Button>
+      <AdminHeaderMenu user={adminUser} mode="desktop" />
+    </>
+  );
 }
 
 async function MobileHeaderAuth() {
@@ -59,7 +69,20 @@ async function MobileHeaderAuth() {
     );
   }
 
-  return <AdminHeaderMenu user={adminUser} mode="mobile" />;
+  return (
+    <>
+      <SheetClose asChild>
+        <Link
+          href="/admin/anggota/baru"
+          className={cn(buttonVariants(), "w-full justify-center")}
+        >
+          <Plus className="size-4" />
+          <span>Tambah Jiwa</span>
+        </Link>
+      </SheetClose>
+      <AdminHeaderMenu user={adminUser} mode="mobile" />
+    </>
+  );
 }
 
 export function SiteHeader({

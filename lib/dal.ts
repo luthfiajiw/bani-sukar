@@ -6,7 +6,7 @@ import { AUTH_COOKIE_NAME, verifyJwtToken } from '@/lib/jwt';
 
 export interface AppSessionUser {
   id: string;
-  email: string;
+  username: string;
   name: string;
   role: string;
 }
@@ -34,7 +34,7 @@ export const getSession = cache(async (): Promise<AppSession | null> => {
     return {
       user: {
         id: payload.sub,
-        email: payload.email,
+        username: payload.username,
         name: payload.name,
         role: payload.role,
       },

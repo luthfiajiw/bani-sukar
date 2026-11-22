@@ -172,7 +172,7 @@ export interface RelationEditorData {
 export interface AdminUserSummary {
   id: string;
   name: string;
-  email: string;
+  username: string;
   role: string;
   createdAt?: Date | string;
 }

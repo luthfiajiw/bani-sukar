@@ -15,6 +15,13 @@
       "when": 1795347519242,
       "tag": "0001_numerous_flatman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795355855617,
+      "tag": "0002_rename_admin_email_to_username",
+      "breakpoints": true
     }
   ]
 }

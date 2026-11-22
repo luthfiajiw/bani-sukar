@@ -992,31 +992,33 @@ export async function reorderChildrenAction(
 }
 
 export async function loginAction(
-  emailOrObj: string | { email: string; password: string },
+  usernameOrObj: string | { username?: string; email?: string; password: string },
   maybePassword?: string
-): Promise<ActionResult<{ email: string; name: string }>> {
+): Promise<ActionResult<{ username: string; name: string }>> {
   try {
-    const email = (
-      typeof emailOrObj === 'string' ? emailOrObj : emailOrObj.email
+    const username = (
+      typeof usernameOrObj === 'string'
+        ? usernameOrObj
+        : (usernameOrObj.username ?? usernameOrObj.email ?? '')
     )
       .trim()
       .toLowerCase();
     const password =
-      typeof emailOrObj === 'string'
+      typeof usernameOrObj === 'string'
         ? (maybePassword ?? '')
-        : emailOrObj.password;
+        : usernameOrObj.password;
 
-    if (!email || !password) {
+    if (!username || !password) {
       return {
         ok: false,
-        error: 'Harap isi email dan kata sandi admin.',
+        error: 'Harap isi username dan kata sandi admin.',
       };
     }
 
     const store = getFallbackStore();
     let authenticatedUser: {
       id: string;
-      email: string;
+      username: string;
       name: string;
       role: string;
     } | null = null;
@@ -1027,14 +1029,14 @@ export async function loginAction(
         const [row] = await db
           .select()
           .from(adminUsersTable)
-          .where(eq(adminUsersTable.email, email))
+          .where(eq(adminUsersTable.username, username))
           .limit(1);
         dbQueriedSuccessfully = true;
 
         if (row && verifyPassword(password, row.passwordHash)) {
           authenticatedUser = {
             id: row.id,
-            email: row.email,
+            username: row.username,
             name: row.name,
             role: row.role || 'admin',
           };
@@ -1052,12 +1054,16 @@ export async function loginAction(
 
     if (!dbQueriedSuccessfully && process.env.NODE_ENV !== 'production') {
       const matchedUser = store.adminUsers.find(
-        (u) => u.email.toLowerCase() === email && u.password === password
+        (u) => u.username.toLowerCase() === username && u.password === password
       );
 
-      const seedEmail = (
-        process.env.SEED_ADMIN_EMAIL || 'admin@banisukar.id'
-      ).toLowerCase();
+      const seedUsername = (
+        process.env.SEED_ADMIN_USERNAME ||
+        process.env.SEED_ADMIN_EMAIL ||
+        'admin@banisukar.id'
+      )
+        .trim()
+        .toLowerCase();
       const seedPassword =
         process.env.SEED_ADMIN_PASSWORD || 'AdminBaniSukar123!';
       const seedName = process.env.SEED_ADMIN_NAME || 'Admin Bani Sukar';
@@ -1065,14 +1071,14 @@ export async function loginAction(
       if (matchedUser) {
         authenticatedUser = {
           id: matchedUser.id,
-          email: matchedUser.email,
+          username: matchedUser.username,
           name: matchedUser.name,
           role: matchedUser.role || 'admin',
         };
-      } else if (email === seedEmail && password === seedPassword) {
+      } else if (username === seedUsername && password === seedPassword) {
         authenticatedUser = {
           id: 'dev-admin',
-          email: seedEmail,
+          username: seedUsername,
           name: seedName,
           role: 'admin',
         };
@@ -1082,13 +1088,13 @@ export async function loginAction(
     if (!authenticatedUser) {
       return {
         ok: false,
-        error: 'Email atau kata sandi admin tidak sesuai.',
+        error: 'Username atau kata sandi admin tidak sesuai.',
       };
     }
 
     const token = await signJwtToken({
       sub: authenticatedUser.id,
-      email: authenticatedUser.email,
+      username: authenticatedUser.username,
       name: authenticatedUser.name,
       role: authenticatedUser.role,
     });
@@ -1105,7 +1111,7 @@ export async function loginAction(
     return {
       ok: true,
       data: {
-        email: authenticatedUser.email,
+        username: authenticatedUser.username,
         name: authenticatedUser.name,
       },
     };
@@ -1144,7 +1150,7 @@ export async function listAdminUsersAction(): Promise<
           .select({
             id: adminUsersTable.id,
             name: adminUsersTable.name,
-            email: adminUsersTable.email,
+            username: adminUsersTable.username,
             role: adminUsersTable.role,
             createdAt: adminUsersTable.createdAt,
           })
@@ -1154,7 +1160,7 @@ export async function listAdminUsersAction(): Promise<
           data: rows.map((r) => ({
             id: r.id,
             name: r.name,
-            email: r.email,
+            username: r.username,
             role: r.role ?? 'admin',
             createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
           })),
@@ -1169,7 +1175,7 @@ export async function listAdminUsersAction(): Promise<
       data: store.adminUsers.map((u) => ({
         id: u.id,
         name: u.name,
-        email: u.email,
+        username: u.username,
         role: u.role,
         createdAt: u.createdAt,
       })),
@@ -1187,7 +1193,7 @@ export async function listAdminUsersAction(): Promise<
 
 export async function createAdminUserAction(input: {
   name: string;
-  email: string;
+  username: string;
   password: string;
   role?: string;
 }): Promise<ActionResult<AdminUserSummary>> {
@@ -1195,14 +1201,14 @@ export async function createAdminUserAction(input: {
     await requireAdmin();
 
     const name = input.name?.trim();
-    const email = input.email?.trim().toLowerCase();
+    const username = input.username?.trim().toLowerCase();
     const password = input.password ?? '';
 
     if (!name || name.length < 2) {
       return { ok: false, error: 'Nama admin minimal 2 karakter.' };
     }
-    if (!email || !email.includes('@')) {
-      return { ok: false, error: 'Alamat email tidak valid.' };
+    if (!username) {
+      return { ok: false, error: 'Username wajib diisi.' };
     }
     if (password.length < 8) {
       return { ok: false, error: 'Kata sandi minimal 8 karakter.' };
@@ -1215,25 +1221,25 @@ export async function createAdminUserAction(input: {
         const existing = await db
           .select({ id: adminUsersTable.id })
           .from(adminUsersTable)
-          .where(eq(adminUsersTable.email, email))
+          .where(eq(adminUsersTable.username, username))
           .limit(1);
 
         if (existing.length > 0) {
-          return { ok: false, error: 'Email admin sudah terdaftar.' };
+          return { ok: false, error: 'Username admin sudah terdaftar.' };
         }
 
         const [inserted] = await db
           .insert(adminUsersTable)
           .values({
             name,
-            email,
+            username,
             passwordHash: hashPassword(password),
             role: 'admin',
           })
           .returning({
             id: adminUsersTable.id,
             name: adminUsersTable.name,
-            email: adminUsersTable.email,
+            username: adminUsersTable.username,
             role: adminUsersTable.role,
             createdAt: adminUsersTable.createdAt,
           });
@@ -1242,7 +1248,7 @@ export async function createAdminUserAction(input: {
           const created: AdminUserSummary = {
             id: inserted.id,
             name: inserted.name,
-            email: inserted.email,
+            username: inserted.username,
             role: inserted.role ?? 'admin',
             createdAt: inserted.createdAt.toISOString(),
           };
@@ -1260,14 +1266,14 @@ export async function createAdminUserAction(input: {
       }
     }
 
-    if (store.adminUsers.some((u) => u.email.toLowerCase() === email)) {
-      return { ok: false, error: 'Email admin sudah terdaftar.' };
+    if (store.adminUsers.some((u) => u.username.toLowerCase() === username)) {
+      return { ok: false, error: 'Username admin sudah terdaftar.' };
     }
 
     const created: AdminUserSummary = {
       id: crypto.randomUUID(),
       name,
-      email,
+      username,
       role: 'admin',
       createdAt: new Date().toISOString(),
     };

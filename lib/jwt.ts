@@ -6,7 +6,7 @@ export const JWT_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 export interface JwtSessionPayload {
   sub: string;
-  email: string;
+  username: string;
   name: string;
   role: string;
 }
@@ -27,7 +27,7 @@ function getJwtSecretKey(): Uint8Array {
 export async function signJwtToken(payload: JwtSessionPayload): Promise<string> {
   const secretKey = getJwtSecretKey();
   return new SignJWT({
-    email: payload.email,
+    username: payload.username,
     name: payload.name,
     role: payload.role,
   })
@@ -58,13 +58,18 @@ export async function verifyJwtToken(
 
 function extractSessionPayload(payload: JWTPayload): JwtSessionPayload | null {
   const sub = typeof payload.sub === 'string' ? payload.sub : null;
-  const email = typeof payload.email === 'string' ? payload.email : null;
+  const username =
+    typeof payload.username === 'string'
+      ? payload.username
+      : typeof payload.email === 'string'
+        ? payload.email
+        : null;
   const name = typeof payload.name === 'string' ? payload.name : null;
   const role = typeof payload.role === 'string' ? payload.role : 'admin';
 
-  if (!sub || !email || !name) {
+  if (!sub || !username || !name) {
     return null;
   }
 
-  return { sub, email, name, role };
+  return { sub, username, name, role };
 }

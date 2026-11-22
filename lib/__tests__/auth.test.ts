@@ -10,7 +10,7 @@ describe('JWT Auth & Password Hashing', () => {
   it('signs and verifies a valid admin JWT payload', async () => {
     const token = await signJwtToken({
       sub: 'user-123',
-      email: 'admin@banisukar.id',
+      username: 'admin',
       name: 'Admin Bani Sukar',
       role: 'admin',
     });
@@ -20,7 +20,7 @@ describe('JWT Auth & Password Hashing', () => {
     const payload = await verifyJwtToken(token);
     expect(payload).toEqual({
       sub: 'user-123',
-      email: 'admin@banisukar.id',
+      username: 'admin',
       name: 'Admin Bani Sukar',
       role: 'admin',
     });
@@ -33,7 +33,7 @@ describe('JWT Auth & Password Hashing', () => {
 
     const validToken = await signJwtToken({
       sub: 'user-123',
-      email: 'admin@banisukar.id',
+      username: 'admin',
       name: 'Admin Bani Sukar',
       role: 'admin',
     });

@@ -85,7 +85,11 @@ async function main() {
   });
 
   // 4. Seed initial admin user into admin_users (JWT auth)
-  const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@banisukar.id')
+  const adminUsername = (
+    process.env.SEED_ADMIN_USERNAME ||
+    process.env.SEED_ADMIN_EMAIL ||
+    'admin@banisukar.id'
+  )
     .trim()
     .toLowerCase();
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'AdminBaniSukar123!';
@@ -94,23 +98,23 @@ async function main() {
   const existingAdmin = await db
     .select({ id: adminUsers.id })
     .from(adminUsers)
-    .where(eq(adminUsers.email, adminEmail))
+    .where(eq(adminUsers.username, adminUsername))
     .limit(1);
 
   if (existingAdmin.length === 0) {
-    console.log(`🔐 Membuat akun admin awal (${adminEmail})...`);
+    console.log(`🔐 Membuat akun admin awal (${adminUsername})...`);
     await db
       .insert(adminUsers)
       .values({
         name: adminName,
-        email: adminEmail,
+        username: adminUsername,
         passwordHash: hashPassword(adminPassword),
         role: 'admin',
       })
-      .onConflictDoNothing({ target: adminUsers.email });
+      .onConflictDoNothing({ target: adminUsers.username });
     console.log('✅ Akun admin berhasil dibuat.');
   } else {
-    console.log(`ℹ️ Akun admin (${adminEmail}) sudah terdaftar.`);
+    console.log(`ℹ️ Akun admin (${adminUsername}) sudah terdaftar.`);
   }
 
   console.log('🎉 Proses seed selesai dengan sukses!');
