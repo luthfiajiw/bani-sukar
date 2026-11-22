@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionCookie } from 'better-auth/cookies';
+import { AUTH_COOKIE_NAME, verifyJwtToken } from '@/lib/jwt';
 
-export function proxy(request: NextRequest) {
-  const sessionCookie = getSessionCookie(request);
-  const devAdminCookie =
-    process.env.NODE_ENV !== 'production' &&
-    request.cookies.get('bani_sukar_dev_admin')?.value === '1';
+export async function proxy(request: NextRequest) {
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const session = await verifyJwtToken(token);
 
-  if (!sessionCookie && !devAdminCookie) {
+  if (!session || session.role !== 'admin') {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);

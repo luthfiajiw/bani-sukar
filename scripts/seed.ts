@@ -1,8 +1,8 @@
-import 'dotenv/config';
+import './load-env';
 import { db, client } from '../db';
 import { persons, unions } from '../db/schema';
-import { user } from '../db/auth-schema';
-import { auth } from '../lib/auth';
+import { adminUsers } from '../db/auth-schema';
+import { hashPassword } from '../lib/auth';
 import { SEED_PERSONS, SEED_UNIONS } from '../features/family/seed-data';
 import { eq, sql } from 'drizzle-orm';
 
@@ -84,49 +84,31 @@ async function main() {
     }
   });
 
-  // 4. Seed initial admin user via Better Auth
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@banisukar.id';
+  // 4. Seed initial admin user into admin_users (JWT auth)
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@banisukar.id')
+    .trim()
+    .toLowerCase();
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'AdminBaniSukar123!';
   const adminName = process.env.SEED_ADMIN_NAME || 'Admin Bani Sukar';
 
   const existingAdmin = await db
-    .select()
-    .from(user)
-    .where(eq(user.email, adminEmail))
+    .select({ id: adminUsers.id })
+    .from(adminUsers)
+    .where(eq(adminUsers.email, adminEmail))
     .limit(1);
 
   if (existingAdmin.length === 0) {
     console.log(`🔐 Membuat akun admin awal (${adminEmail})...`);
-    try {
-      await auth.api.createUser({
-        body: {
-          email: adminEmail,
-          password: adminPassword,
-          name: adminName,
-          role: 'admin',
-        },
-      });
-      await db
-        .update(user)
-        .set({ role: 'admin', emailVerified: true })
-        .where(eq(user.email, adminEmail));
-      console.log('✅ Akun admin berhasil dibuat.');
-    } catch (err) {
-      console.warn('⚠️ Gagal lewat createUser, mencoba signUpEmail...', err);
-      const res = await auth.api.signUpEmail({
-        body: {
-          email: adminEmail,
-          password: adminPassword,
-          name: adminName,
-        },
-      });
-      if (res?.user?.id) {
-        await db
-          .update(user)
-          .set({ role: 'admin', emailVerified: true })
-          .where(eq(user.id, res.user.id));
-      }
-    }
+    await db
+      .insert(adminUsers)
+      .values({
+        name: adminName,
+        email: adminEmail,
+        passwordHash: hashPassword(adminPassword),
+        role: 'admin',
+      })
+      .onConflictDoNothing({ target: adminUsers.email });
+    console.log('✅ Akun admin berhasil dibuat.');
   } else {
     console.log(`ℹ️ Akun admin (${adminEmail}) sudah terdaftar.`);
   }

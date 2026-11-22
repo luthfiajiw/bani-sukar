@@ -2,12 +2,18 @@
 
 import { eq } from 'drizzle-orm';
 import { updateTag } from 'next/cache';
-import { cookies, headers } from 'next/headers';
-import { db, isDbAvailable, isDbConfigured } from '@/db';
-import { user as userTable } from '@/db/auth-schema';
+import { cookies } from 'next/headers';
+import { db, isDbConfigured } from '@/db';
+import { adminUsers as adminUsersTable } from '@/db/auth-schema';
 import { persons as personsTable, unions as unionsTable } from '@/db/schema';
-import { auth } from '@/lib/auth';
-import { DEV_ADMIN_COOKIE, requireAdmin } from '@/lib/dal';
+import {
+  AUTH_COOKIE_NAME,
+  JWT_MAX_AGE_SECONDS,
+  hashPassword,
+  signJwtToken,
+  verifyPassword,
+} from '@/lib/auth';
+import { requireAdmin } from '@/lib/dal';
 import { buildGraph } from './graph';
 import {
   type FamilyFallbackStore,
@@ -780,19 +786,11 @@ export async function reorderChildrenAction(
   }
 }
 
-export async function devLoginAction(
+export async function loginAction(
   emailOrObj: string | { email: string; password: string },
   maybePassword?: string
 ): Promise<ActionResult<{ email: string; name: string }>> {
   try {
-    if (process.env.NODE_ENV === 'production' || (await isDbAvailable())) {
-      return {
-        ok: false,
-        error:
-          'Login mode pengembangan dinonaktifkan di production atau saat database aktif.',
-      };
-    }
-
     const email = (
       typeof emailOrObj === 'string' ? emailOrObj : emailOrObj.email
     )
@@ -803,40 +801,107 @@ export async function devLoginAction(
         ? (maybePassword ?? '')
         : emailOrObj.password;
 
+    if (!email || !password) {
+      return {
+        ok: false,
+        error: 'Harap isi email dan kata sandi admin.',
+      };
+    }
+
     const store = getFallbackStore();
-    const matchedUser = store.adminUsers.find(
-      (u) => u.email.toLowerCase() === email && u.password === password
-    );
+    let authenticatedUser: {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+    } | null = null;
+    let dbQueriedSuccessfully = false;
 
-    const seedEmail = (
-      process.env.SEED_ADMIN_EMAIL || 'admin@banisukar.id'
-    ).toLowerCase();
-    const seedPassword =
-      process.env.SEED_ADMIN_PASSWORD || 'AdminBaniSukar123!';
-    const seedName = process.env.SEED_ADMIN_NAME || 'Admin Bani Sukar';
+    if (shouldAttemptDb(store)) {
+      try {
+        const [row] = await db
+          .select()
+          .from(adminUsersTable)
+          .where(eq(adminUsersTable.email, email))
+          .limit(1);
+        dbQueriedSuccessfully = true;
 
-    const isSeedValid = email === seedEmail && password === seedPassword;
+        if (row && verifyPassword(password, row.passwordHash)) {
+          authenticatedUser = {
+            id: row.id,
+            email: row.email,
+            name: row.name,
+            role: row.role || 'admin',
+          };
+        }
+      } catch {
+        handleDbError(store);
+        if (process.env.NODE_ENV === 'production') {
+          return {
+            ok: false,
+            error: 'Gagal terhubung ke database autentikasi.',
+          };
+        }
+      }
+    }
 
-    if (!matchedUser && !isSeedValid) {
+    if (!dbQueriedSuccessfully && process.env.NODE_ENV !== 'production') {
+      const matchedUser = store.adminUsers.find(
+        (u) => u.email.toLowerCase() === email && u.password === password
+      );
+
+      const seedEmail = (
+        process.env.SEED_ADMIN_EMAIL || 'admin@banisukar.id'
+      ).toLowerCase();
+      const seedPassword =
+        process.env.SEED_ADMIN_PASSWORD || 'AdminBaniSukar123!';
+      const seedName = process.env.SEED_ADMIN_NAME || 'Admin Bani Sukar';
+
+      if (matchedUser) {
+        authenticatedUser = {
+          id: matchedUser.id,
+          email: matchedUser.email,
+          name: matchedUser.name,
+          role: matchedUser.role || 'admin',
+        };
+      } else if (email === seedEmail && password === seedPassword) {
+        authenticatedUser = {
+          id: 'dev-admin',
+          email: seedEmail,
+          name: seedName,
+          role: 'admin',
+        };
+      }
+    }
+
+    if (!authenticatedUser) {
       return {
         ok: false,
         error: 'Email atau kata sandi admin tidak sesuai.',
       };
     }
 
+    const token = await signJwtToken({
+      sub: authenticatedUser.id,
+      email: authenticatedUser.email,
+      name: authenticatedUser.name,
+      role: authenticatedUser.role,
+    });
+
     const cookieStore = await cookies();
-    cookieStore.set(DEV_ADMIN_COOKIE, '1', {
+    cookieStore.set(AUTH_COOKIE_NAME, token, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       path: '/',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: JWT_MAX_AGE_SECONDS,
     });
 
     return {
       ok: true,
       data: {
-        email: matchedUser?.email ?? seedEmail,
-        name: matchedUser?.name ?? seedName,
+        email: authenticatedUser.email,
+        name: authenticatedUser.name,
       },
     };
   } catch (err) {
@@ -848,10 +913,10 @@ export async function devLoginAction(
   }
 }
 
-export async function devLogoutAction(): Promise<ActionResult<void>> {
+export async function logoutAction(): Promise<ActionResult<void>> {
   try {
     const cookieStore = await cookies();
-    cookieStore.delete(DEV_ADMIN_COOKIE);
+    cookieStore.delete(AUTH_COOKIE_NAME);
     return { ok: true, data: undefined };
   } catch (err) {
     return {
@@ -870,19 +935,25 @@ export async function listAdminUsersAction(): Promise<
 
     if (shouldAttemptDb(store)) {
       try {
-        const rows = await db.select().from(userTable);
-        if (rows.length > 0) {
-          return {
-            ok: true,
-            data: rows.map((r) => ({
-              id: r.id,
-              name: r.name,
-              email: r.email,
-              role: r.role ?? 'admin',
-              createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
-            })),
-          };
-        }
+        const rows = await db
+          .select({
+            id: adminUsersTable.id,
+            name: adminUsersTable.name,
+            email: adminUsersTable.email,
+            role: adminUsersTable.role,
+            createdAt: adminUsersTable.createdAt,
+          })
+          .from(adminUsersTable);
+        return {
+          ok: true,
+          data: rows.map((r) => ({
+            id: r.id,
+            name: r.name,
+            email: r.email,
+            role: r.role ?? 'admin',
+            createdAt: r.createdAt ? r.createdAt.toISOString() : undefined,
+          })),
+        };
       } catch {
         handleDbError(store);
       }
@@ -936,28 +1007,51 @@ export async function createAdminUserAction(input: {
 
     if (shouldAttemptDb(store)) {
       try {
-        const res = await auth.api.createUser({
-          headers: await headers(),
-          body: {
+        const existing = await db
+          .select({ id: adminUsersTable.id })
+          .from(adminUsersTable)
+          .where(eq(adminUsersTable.email, email))
+          .limit(1);
+
+        if (existing.length > 0) {
+          return { ok: false, error: 'Email admin sudah terdaftar.' };
+        }
+
+        const [inserted] = await db
+          .insert(adminUsersTable)
+          .values({
             name,
             email,
-            password,
+            passwordHash: hashPassword(password),
             role: 'admin',
-          },
-        });
-        if (res?.user) {
+          })
+          .returning({
+            id: adminUsersTable.id,
+            name: adminUsersTable.name,
+            email: adminUsersTable.email,
+            role: adminUsersTable.role,
+            createdAt: adminUsersTable.createdAt,
+          });
+
+        if (inserted) {
           const created: AdminUserSummary = {
-            id: res.user.id,
-            name: res.user.name,
-            email: res.user.email,
-            role: 'admin',
-            createdAt: new Date().toISOString(),
+            id: inserted.id,
+            name: inserted.name,
+            email: inserted.email,
+            role: inserted.role ?? 'admin',
+            createdAt: inserted.createdAt.toISOString(),
           };
           store.adminUsers.push({ ...created, password });
           return { ok: true, data: created };
         }
       } catch {
         handleDbError(store);
+        if (process.env.NODE_ENV === 'production') {
+          return {
+            ok: false,
+            error: 'Gagal menyimpan akun admin baru ke database.',
+          };
+        }
       }
     }
 
@@ -990,28 +1084,56 @@ export async function deleteAdminUserAction(
   userIdOrObj: string | { id?: string; userId?: string }
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
 
     const userId =
       typeof userIdOrObj === 'string'
         ? userIdOrObj
         : (userIdOrObj.userId ?? userIdOrObj.id ?? '');
 
+    if (!userId) {
+      return { ok: false, error: 'ID admin tidak valid.' };
+    }
+
+    if (session.user.id === userId) {
+      return {
+        ok: false,
+        error: 'Anda tidak dapat menghapus akun admin yang sedang digunakan.',
+      };
+    }
+
     const store = getFallbackStore();
+
+    if (shouldAttemptDb(store)) {
+      try {
+        const allAdmins = await db
+          .select({ id: adminUsersTable.id })
+          .from(adminUsersTable);
+        if (allAdmins.length <= 1) {
+          return {
+            ok: false,
+            error: 'Tidak dapat menghapus satu-satunya akun admin utama.',
+          };
+        }
+        await db.delete(adminUsersTable).where(eq(adminUsersTable.id, userId));
+        store.adminUsers = store.adminUsers.filter((u) => u.id !== userId);
+        return { ok: true, data: { id: userId } };
+      } catch {
+        handleDbError(store);
+        if (process.env.NODE_ENV === 'production') {
+          return {
+            ok: false,
+            error: 'Gagal menghapus pengguna admin dari database.',
+          };
+        }
+      }
+    }
 
     if (store.adminUsers.length <= 1 && store.adminUsers[0]?.id === userId) {
       return {
         ok: false,
         error: 'Tidak dapat menghapus satu-satunya akun admin utama.',
       };
-    }
-
-    if (shouldAttemptDb(store)) {
-      try {
-        await db.delete(userTable).where(eq(userTable.id, userId));
-      } catch {
-        handleDbError(store);
-      }
     }
 
     store.adminUsers = store.adminUsers.filter((u) => u.id !== userId);
@@ -1058,15 +1180,21 @@ export async function resetAdminPasswordAction(
 
     if (shouldAttemptDb(store)) {
       try {
-        await auth.api.setUserPassword({
-          headers: await headers(),
-          body: {
-            userId,
-            newPassword,
-          },
-        });
+        await db
+          .update(adminUsersTable)
+          .set({
+            passwordHash: hashPassword(newPassword),
+            updatedAt: new Date(),
+          })
+          .where(eq(adminUsersTable.id, userId));
       } catch {
         handleDbError(store);
+        if (process.env.NODE_ENV === 'production') {
+          return {
+            ok: false,
+            error: 'Gagal memperbarui kata sandi di database.',
+          };
+        }
       }
     }
 

@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, TreePine } from 'lucide-react';
 import { toast } from 'sonner';
-import { authClient } from '@/lib/auth-client';
-import { devLoginAction } from '@/features/family/actions';
+import { loginAction } from '@/features/family/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,35 +36,14 @@ export default function LoginPage() {
     let authError = '';
 
     try {
-      const res = await authClient.signIn.email({
-        email: trimmedEmail,
-        password,
-      });
-
-      if (!res.error) {
+      const res = await loginAction(trimmedEmail, password);
+      if (res.ok) {
         signedIn = true;
       } else {
-        authError = res.error.message || 'Email atau kata sandi tidak valid.';
-        if (!res.error.status || res.error.status >= 500) {
-          const devRes = await devLoginAction(trimmedEmail, password);
-          if (devRes.ok) {
-            signedIn = true;
-          } else {
-            authError = devRes.error || authError;
-          }
-        }
+        authError = res.error || 'Email atau kata sandi tidak valid.';
       }
     } catch {
-      try {
-        const devRes = await devLoginAction(trimmedEmail, password);
-        if (devRes.ok) {
-          signedIn = true;
-        } else {
-          authError = devRes.error || 'Email atau kata sandi tidak valid.';
-        }
-      } catch {
-        authError = 'Gagal terhubung ke layanan autentikasi.';
-      }
+      authError = 'Gagal terhubung ke layanan autentikasi.';
     } finally {
       setIsSubmitting(false);
     }

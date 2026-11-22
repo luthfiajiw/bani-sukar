@@ -17,10 +17,9 @@ import type { AdminUserSummary } from '@/features/family/types';
 import {
   createAdminUserAction,
   deleteAdminUserAction,
-  devLogoutAction,
+  logoutAction,
   resetAdminPasswordAction,
 } from '@/features/family/actions';
-import { authClient } from '@/lib/auth-client';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -164,12 +163,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
   async function handleSignOut() {
     setIsSigningOut(true);
     try {
-      try {
-        await authClient.signOut();
-      } catch {
-        // Ignore if Better Auth is offline
-      }
-      await devLogoutAction();
+      await logoutAction();
       toast.success('Anda telah keluar dari Portal Admin.');
       router.push('/login');
       router.refresh();
