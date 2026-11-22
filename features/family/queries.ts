@@ -1,6 +1,7 @@
 import { cacheLife, cacheTag } from 'next/cache';
 import { db, isDbConfigured } from '@/db';
 import { persons as personsTable, unions as unionsTable } from '@/db/schema';
+import { getPhotoPublicUrl } from '@/lib/photo';
 import {
   buildGraph,
   getDescendantStats,
@@ -79,6 +80,8 @@ function normalizePersonRow(row: typeof personsTable.$inferSelect): Person {
     isBloodLine: Boolean(row.isBloodLine),
     parentUnionId: row.parentUnionId ?? null,
     birthOrder: row.birthOrder ?? null,
+    photoPath: row.photoPath ?? null,
+    photoUrl: getPhotoPublicUrl(row.photoPath),
     createdAt: row.createdAt ? row.createdAt.toISOString() : undefined,
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : undefined,
   };
@@ -133,7 +136,14 @@ export async function getFamilyData(): Promise<{
   }
 
   return {
-    persons: store.persons.map((p) => ({ ...p })),
+    persons: store.persons.map((p) => {
+      const photoPath = p.photoPath ?? null;
+      return {
+        ...p,
+        photoPath,
+        photoUrl: p.photoUrl ?? getPhotoPublicUrl(photoPath),
+      };
+    }),
     unions: store.unions.map((u) => ({ ...u })),
   };
 }

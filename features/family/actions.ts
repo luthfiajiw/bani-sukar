@@ -14,6 +14,17 @@ import {
   verifyPassword,
 } from '@/lib/auth';
 import { requireAdmin } from '@/lib/dal';
+import {
+  PHOTO_MAX_UPLOAD_BYTES,
+  getPhotoPublicUrl,
+  sniffImageType,
+  validatePhotoFile,
+} from '@/lib/photo';
+import {
+  deleteStorageObject,
+  isStorageConfigured,
+  uploadPersonPhoto,
+} from '@/lib/storage';
 import { buildGraph } from './graph';
 import {
   type FamilyFallbackStore,
@@ -121,6 +132,8 @@ export async function createPersonAction(
       isBloodLine: data.isBloodLine,
       parentUnionId: data.parentUnionId,
       birthOrder,
+      photoPath: null,
+      photoUrl: null,
       createdAt: nowIso,
       updatedAt: nowIso,
     };
@@ -308,7 +321,8 @@ export async function deletePersonAction(
     const { persons, unions } = await getFamilyData();
     const graph = buildGraph(persons, unions);
 
-    if (!graph.persons.has(id)) {
+    const existingPerson = graph.persons.get(id);
+    if (!existingPerson) {
       return { ok: false, error: 'Anggota keluarga tidak ditemukan.' };
     }
 
@@ -330,6 +344,10 @@ export async function deletePersonAction(
       }
     }
 
+    if (existingPerson.photoPath) {
+      await deleteStorageObject(existingPerson.photoPath);
+    }
+
     store.persons = store.persons.filter((p) => p.id !== id);
     store.unions = store.unions.filter(
       (u) => u.husbandId !== id && u.wifeId !== id
@@ -344,6 +362,193 @@ export async function deletePersonAction(
         err instanceof Error
           ? err.message
           : 'Gagal menghapus anggota keluarga.',
+    };
+  }
+}
+
+export async function uploadPersonPhotoAction(
+  formData: FormData
+): Promise<ActionResult<Person>> {
+  let uploadedKey: string | null = null;
+
+  try {
+    await requireAdmin();
+
+    if (!isStorageConfigured()) {
+      return {
+        ok: false,
+        error: 'Penyimpanan foto S3 Supabase belum dikonfigurasi pada server.',
+      };
+    }
+
+    const personId = String(formData.get('personId') ?? '').trim();
+    if (!personId) {
+      return { ok: false, error: 'ID anggota tidak valid.' };
+    }
+
+    const file = formData.get('file');
+    if (
+      !file ||
+      typeof file === 'string' ||
+      typeof file.arrayBuffer !== 'function'
+    ) {
+      return { ok: false, error: 'File foto wajib dipilih.' };
+    }
+
+    const fileError = validatePhotoFile(
+      { type: file.type || '', size: file.size },
+      PHOTO_MAX_UPLOAD_BYTES
+    );
+    if (fileError) {
+      return { ok: false, error: fileError };
+    }
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const sniffedType = sniffImageType(bytes);
+    if (!sniffedType) {
+      return {
+        ok: false,
+        error: 'Isi file bukan gambar JPG, PNG, atau WebP yang valid.',
+      };
+    }
+
+    const { persons, unions } = await getFamilyData();
+    const graph = buildGraph(persons, unions);
+    const existing = graph.persons.get(personId);
+
+    if (!existing) {
+      return { ok: false, error: 'Data anggota keluarga tidak ditemukan.' };
+    }
+
+    uploadedKey = await uploadPersonPhoto(personId, bytes, sniffedType);
+
+    const store = getFallbackStore();
+    const now = new Date();
+
+    if (shouldAttemptDb(store)) {
+      try {
+        await db
+          .update(personsTable)
+          .set({
+            photoPath: uploadedKey,
+            updatedAt: now,
+          })
+          .where(eq(personsTable.id, personId));
+      } catch {
+        handleDbError(store);
+        if (process.env.NODE_ENV === 'production') {
+          await deleteStorageObject(uploadedKey);
+          return {
+            ok: false,
+            error: 'Gagal menyimpan referensi foto ke database.',
+          };
+        }
+      }
+    }
+
+    if (existing.photoPath && existing.photoPath !== uploadedKey) {
+      await deleteStorageObject(existing.photoPath);
+    }
+
+    const updatedPerson: Person = {
+      ...existing,
+      photoPath: uploadedKey,
+      photoUrl: getPhotoPublicUrl(uploadedKey),
+      updatedAt: now.toISOString(),
+    };
+
+    const idx = store.persons.findIndex((p) => p.id === personId);
+    if (idx !== -1) {
+      store.persons[idx] = updatedPerson;
+    } else {
+      store.persons.push(updatedPerson);
+    }
+
+    updateTag('family');
+    return { ok: true, data: updatedPerson };
+  } catch (err) {
+    if (uploadedKey) {
+      await deleteStorageObject(uploadedKey);
+    }
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : 'Gagal mengunggah foto profil anggota.',
+    };
+  }
+}
+
+export async function removePersonPhotoAction(
+  personId: string
+): Promise<ActionResult<Person>> {
+  try {
+    await requireAdmin();
+
+    const id = personId?.trim();
+    if (!id) {
+      return { ok: false, error: 'ID anggota tidak valid.' };
+    }
+
+    const { persons, unions } = await getFamilyData();
+    const graph = buildGraph(persons, unions);
+    const existing = graph.persons.get(id);
+
+    if (!existing) {
+      return { ok: false, error: 'Data anggota keluarga tidak ditemukan.' };
+    }
+
+    const store = getFallbackStore();
+    const now = new Date();
+
+    if (shouldAttemptDb(store)) {
+      try {
+        await db
+          .update(personsTable)
+          .set({
+            photoPath: null,
+            updatedAt: now,
+          })
+          .where(eq(personsTable.id, id));
+      } catch {
+        handleDbError(store);
+        if (process.env.NODE_ENV === 'production') {
+          return {
+            ok: false,
+            error: 'Gagal menghapus referensi foto di database.',
+          };
+        }
+      }
+    }
+
+    if (existing.photoPath) {
+      await deleteStorageObject(existing.photoPath);
+    }
+
+    const updatedPerson: Person = {
+      ...existing,
+      photoPath: null,
+      photoUrl: null,
+      updatedAt: now.toISOString(),
+    };
+
+    const idx = store.persons.findIndex((p) => p.id === id);
+    if (idx !== -1) {
+      store.persons[idx] = updatedPerson;
+    } else {
+      store.persons.push(updatedPerson);
+    }
+
+    updateTag('family');
+    return { ok: true, data: updatedPerson };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : 'Gagal menghapus foto profil anggota.',
     };
   }
 }

@@ -17,7 +17,9 @@ import {
   User,
   Users,
 } from 'lucide-react';
+import { GenderBadge } from '@/components/gender-icon';
 import { PersonAvatar } from '@/components/person-avatar';
+import { PersonAvatarPreview } from '@/components/person-avatar-preview';
 import { SiteHeader } from '@/components/site-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -168,10 +170,11 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
         <CardContent className="pt-5">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <PersonAvatar
+              <PersonAvatarPreview
                 fullName={person.fullName}
                 gender={person.gender}
                 isDeceased={person.isDeceased}
+                photoUrl={person.photoUrl}
                 size="xl"
                 className="shrink-0"
               />
@@ -321,11 +324,9 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-muted-foreground">Jenis Kelamin</span>
-                <span className="text-right font-medium">
-                  {person.gender === 'L' ? 'Laki-laki (L)' : 'Perempuan (P)'}
-                </span>
+                <GenderBadge gender={person.gender} size="md" />
               </div>
               <Separator />
               <div className="flex items-start justify-between gap-4">
@@ -395,6 +396,7 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
                         fullName={parents.father.fullName}
                         gender={parents.father.gender}
                         isDeceased={parents.father.isDeceased}
+                        photoUrl={parents.father.photoUrl}
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
@@ -417,6 +419,7 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
                         fullName={parents.mother.fullName}
                         gender={parents.mother.gender}
                         isDeceased={parents.mother.isDeceased}
+                        photoUrl={parents.mother.photoUrl}
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
@@ -491,6 +494,7 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
                                 fullName={spouse.fullName}
                                 gender={spouse.gender}
                                 isDeceased={spouse.isDeceased}
+                                photoUrl={spouse.photoUrl}
                                 size="sm"
                               />
                               <div className="min-w-0">
@@ -618,6 +622,7 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
                               fullName={child.fullName}
                               gender={child.gender}
                               isDeceased={child.isDeceased}
+                              photoUrl={child.photoUrl}
                               size="md"
                             />
                             <div className="min-w-0 flex-1">
@@ -635,9 +640,7 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
 
                         <div className="mt-3 space-y-1 border-t border-border/70 pt-2.5 text-xs text-muted-foreground">
                           <div className="flex items-center justify-between gap-2">
-                            <span>
-                              {child.gender === 'L' ? 'Laki-laki' : 'Perempuan'}
-                            </span>
+                            <GenderBadge gender={child.gender} size="xs" />
                             <span className="font-medium text-foreground">
                               {formatYearRange(
                                 child.birthDate,

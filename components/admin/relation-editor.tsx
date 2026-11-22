@@ -28,6 +28,7 @@ import {
 } from '@/features/family/actions';
 import { AddChildDialog } from '@/components/admin/add-child-dialog';
 import { AddSpouseDialog } from '@/components/admin/add-spouse-dialog';
+import { GenderBadge, GenderIcon } from '@/components/gender-icon';
 import { PersonAvatar } from '@/components/person-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -272,6 +273,7 @@ export function RelationEditor({ data }: RelationEditorProps) {
                           fullName={parent.fullName}
                           gender={parent.gender}
                           isDeceased={parent.isDeceased}
+                          photoUrl={parent.photoUrl}
                           size="sm"
                         />
                         <div className="min-w-0">
@@ -315,15 +317,16 @@ export function RelationEditor({ data }: RelationEditorProps) {
                     fullName={person.fullName}
                     gender={person.gender}
                     isDeceased={person.isDeceased}
+                    photoUrl={person.photoUrl}
                     size="md"
                   />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-foreground">
                       {person.fullName}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {person.gender === 'L' ? 'Laki-laki' : 'Perempuan'} •{' '}
-                      {person.isBloodLine ? 'Nasab' : 'Menantu'}
+                    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <GenderBadge gender={person.gender} size="xs" />
+                      <span>• {person.isBloodLine ? 'Nasab' : 'Menantu'}</span>
                     </p>
                   </div>
                 </div>
@@ -355,6 +358,7 @@ export function RelationEditor({ data }: RelationEditorProps) {
                           fullName={item.spouse.fullName}
                           gender={item.spouse.gender}
                           isDeceased={item.spouse.isDeceased}
+                          photoUrl={item.spouse.photoUrl}
                           size="sm"
                         />
                         <div className="min-w-0">
@@ -402,6 +406,7 @@ export function RelationEditor({ data }: RelationEditorProps) {
                           fullName={child.fullName}
                           gender={child.gender}
                           isDeceased={child.isDeceased}
+                          photoUrl={child.photoUrl}
                           size="sm"
                         />
                         <div className="min-w-0">
@@ -497,8 +502,13 @@ export function RelationEditor({ data }: RelationEditorProps) {
                 ) : (
                   filteredPersons.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.fullName} ({item.gender})
-                      {item.nickname ? ` — ${item.nickname}` : ''}
+                      <span className="inline-flex items-center gap-1.5">
+                        <GenderIcon gender={item.gender} className="size-3.5" />
+                        <span>
+                          {item.fullName}
+                          {item.nickname ? ` — ${item.nickname}` : ''}
+                        </span>
+                      </span>
                     </SelectItem>
                   ))
                 )}
@@ -641,6 +651,7 @@ export function RelationEditor({ data }: RelationEditorProps) {
                           fullName={item.spouse.fullName}
                           gender={item.spouse.gender}
                           isDeceased={item.spouse.isDeceased}
+                          photoUrl={item.spouse.photoUrl}
                           size="md"
                         />
                       ) : (
@@ -798,6 +809,7 @@ export function RelationEditor({ data }: RelationEditorProps) {
                                 fullName={child.fullName}
                                 gender={child.gender}
                                 isDeceased={child.isDeceased}
+                                photoUrl={child.photoUrl}
                                 size="sm"
                               />
                               <div className="min-w-0">
@@ -823,13 +835,16 @@ export function RelationEditor({ data }: RelationEditorProps) {
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {child.gender === 'L' ? 'Laki-laki' : 'Perempuan'} •{' '}
-                                  {formatYearRange(
-                                    child.birthDate,
-                                    child.deathDate,
-                                    child.isDeceased,
-                                  )}
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <GenderBadge gender={child.gender} size="xs" />
+                                  <span>
+                                    •{' '}
+                                    {formatYearRange(
+                                      child.birthDate,
+                                      child.deathDate,
+                                      child.isDeceased,
+                                    )}
+                                  </span>
                                 </p>
                               </div>
                             </div>

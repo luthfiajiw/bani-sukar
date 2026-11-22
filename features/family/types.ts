@@ -13,6 +13,8 @@ export interface Person {
   isBloodLine: boolean;
   parentUnionId: string | null;
   birthOrder: number | null;
+  photoPath?: string | null;
+  photoUrl?: string | null;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }

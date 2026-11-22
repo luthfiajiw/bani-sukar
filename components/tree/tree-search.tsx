@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Search, X } from 'lucide-react';
 import type { Person } from '@/features/family/types';
+import { GenderBadge } from '@/components/gender-icon';
 import { Input } from '@/components/ui/input';
 import { formatYearRange } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -187,8 +188,9 @@ export function TreeSearch({
                         </span>
                       )}
                     </div>
-                    <div className="mt-0.5 pl-3.5 text-[11px] text-muted-foreground">
-                      {person.gender === 'L' ? 'Laki-laki' : 'Perempuan'} • {years}
+                    <div className="mt-0.5 flex items-center gap-1.5 pl-3.5 text-[11px] text-muted-foreground">
+                      <GenderBadge gender={person.gender} size="xs" />
+                      <span>• {years}</span>
                     </div>
                   </div>
                   <span

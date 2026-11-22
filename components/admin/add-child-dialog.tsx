@@ -6,6 +6,7 @@ import { Baby, Loader2, Search, UserPlus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Gender, Person, Union } from '@/features/family/types';
 import { createPersonAction, setParentsAction } from '@/features/family/actions';
+import { GenderIcon } from '@/components/gender-icon';
 import { PersonAvatar } from '@/components/person-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -294,6 +295,7 @@ export function AddChildDialog({
                     )}
                   >
                     <RadioGroupItem id="child-gender-l" value="L" />
+                    <GenderIcon gender="L" className="size-3.5" />
                     Laki-laki (Putra)
                   </label>
                   <label
@@ -304,6 +306,7 @@ export function AddChildDialog({
                     )}
                   >
                     <RadioGroupItem id="child-gender-p" value="P" />
+                    <GenderIcon gender="P" className="size-3.5" />
                     Perempuan (Putri)
                   </label>
                 </RadioGroup>
@@ -400,6 +403,7 @@ export function AddChildDialog({
                             fullName={candidate.fullName}
                             gender={candidate.gender}
                             isDeceased={candidate.isDeceased}
+                            photoUrl={candidate.photoUrl}
                             size="sm"
                           />
                           <div className="min-w-0">

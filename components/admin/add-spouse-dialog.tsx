@@ -258,8 +258,7 @@ export function AddSpouseDialog({
                 <div>
                   <p className="text-sm font-medium text-foreground">Telah Wafat</p>
                   <p className="text-xs text-muted-foreground">
-                    Otomatis tercatat sebagai menantu/pasangan ({spouseRoleLabel},{' '}
-                    {spouseGender}).
+                    Otomatis tercatat sebagai menantu/pasangan ({spouseRoleLabel}).
                   </p>
                 </div>
                 <Switch
@@ -290,7 +289,7 @@ export function AddSpouseDialog({
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder={`Cari ${spouseRoleLabel.toLowerCase()} (${spouseGender})...`}
+                  placeholder={`Cari ${spouseRoleLabel.toLowerCase()}...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -323,6 +322,7 @@ export function AddSpouseDialog({
                             fullName={candidate.fullName}
                             gender={candidate.gender}
                             isDeceased={candidate.isDeceased}
+                            photoUrl={candidate.photoUrl}
                             size="sm"
                           />
                           <div className="min-w-0">

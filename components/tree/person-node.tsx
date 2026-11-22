@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { GenderBadge } from '@/components/gender-icon';
 import { PersonAvatar } from '@/components/person-avatar';
 import { H, W } from '@/features/family/layout';
 import type { PersonNodeData } from '@/features/family/types';
@@ -90,7 +91,9 @@ function PersonNodeComponent({ data, selected }: NodeProps<PersonFlowNode>) {
           fullName={person.fullName}
           gender={person.gender}
           isDeceased={person.isDeceased}
+          photoUrl={person.photoUrl}
           size="sm"
+          imageSizes="128px"
           className={cn('shrink-0', person.nickname && 'mt-0.5')}
         />
 
@@ -113,26 +116,10 @@ function PersonNodeComponent({ data, selected }: NodeProps<PersonFlowNode>) {
 
       <div className="mt-2 flex items-center justify-between gap-1.5 border-t border-border/60 pt-1.5 text-[10px] text-muted-foreground">
         <div className="flex items-center gap-1">
-          <span
-            className={cn(
-              'inline-flex items-center rounded px-1 py-px font-semibold',
-              person.gender === 'L'
-                ? 'bg-primary/10 text-primary'
-                : 'bg-accent/20 text-accent-foreground',
-            )}
-          >
-            {person.gender}
-          </span>
+          <GenderBadge gender={person.gender} size="xs" />
           <span className="rounded bg-secondary px-1 py-px font-medium text-secondary-foreground">
             G{generation}
           </span>
-          <span
-            className={cn(
-              'inline-block size-1.5 rounded-full',
-              person.isDeceased ? 'bg-destructive' : 'bg-[#2d4030]',
-            )}
-            title={person.isDeceased ? 'Almarhum / Wafat' : 'Masih Hidup'}
-          />
         </div>
 
         <span className="truncate text-right font-medium text-foreground/80">

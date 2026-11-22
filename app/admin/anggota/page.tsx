@@ -16,6 +16,7 @@ import {
 import { listPersonsAdmin } from '@/features/family/queries';
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { DeletePersonDialog } from '@/components/admin/delete-person-dialog';
+import { GenderBadge } from '@/components/gender-icon';
 import { PersonAvatar } from '@/components/person-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -241,7 +242,7 @@ async function AnggotaDirectoryContent({
               <TableHeader>
                 <TableRow className="bg-muted/60 hover:bg-muted/60">
                   <TableHead>Anggota</TableHead>
-                  <TableHead>Generasi &amp; L/P</TableHead>
+                  <TableHead>Generasi &amp; Gender</TableHead>
                   <TableHead>Kelahiran &amp; Status</TableHead>
                   <TableHead>Orang Tua</TableHead>
                   <TableHead>Pasangan &amp; Anak</TableHead>
@@ -257,6 +258,7 @@ async function AnggotaDirectoryContent({
                           fullName={row.fullName}
                           gender={row.gender}
                           isDeceased={row.isDeceased}
+                          photoUrl={row.photoUrl}
                           size="md"
                         />
                         <div className="min-w-0">
@@ -280,13 +282,11 @@ async function AnggotaDirectoryContent({
                     </TableCell>
 
                     <TableCell className="whitespace-normal">
-                      <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1.5">
                         <Badge variant="secondary" className="text-[11px]">
                           Gen {row.generation}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {row.gender === 'L' ? 'Laki-laki (L)' : 'Perempuan (P)'}
-                        </span>
+                        <GenderBadge gender={row.gender} size="sm" />
                       </div>
                     </TableCell>
 
@@ -393,6 +393,7 @@ async function AnggotaDirectoryContent({
                         fullName={row.fullName}
                         gender={row.gender}
                         isDeceased={row.isDeceased}
+                        photoUrl={row.photoUrl}
                         size="md"
                       />
                       <div className="min-w-0">
@@ -421,9 +422,7 @@ async function AnggotaDirectoryContent({
 
                 <CardContent className="space-y-3 text-xs">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge variant="outline">
-                      {row.gender === 'L' ? 'Laki-laki (L)' : 'Perempuan (P)'}
-                    </Badge>
+                    <GenderBadge gender={row.gender} size="sm" />
                     <Badge variant={row.isBloodLine ? 'secondary' : 'accent'}>
                       {row.isBloodLine ? 'Keturunan Bani Sukar' : 'Menantu / Pasangan'}
                     </Badge>

@@ -33,6 +33,7 @@ export const persons = pgTable(
       onDelete: 'restrict',
     }),
     birthOrder: integer('birth_order'),
+    photoPath: text('photo_path'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .defaultNow()

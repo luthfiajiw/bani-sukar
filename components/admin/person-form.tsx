@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -16,7 +16,16 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Gender, Person } from '@/features/family/types';
-import { createPersonAction, updatePersonAction } from '@/features/family/actions';
+import {
+  createPersonAction,
+  updatePersonAction,
+  uploadPersonPhotoAction,
+} from '@/features/family/actions';
+import {
+  PersonPhotoField,
+  type PendingPhotoUpload,
+} from '@/components/admin/person-photo-field';
+import { GenderBadge, GenderIcon } from '@/components/gender-icon';
 import { PersonAvatar } from '@/components/person-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,6 +59,12 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
     initialPerson?.isDeceased ?? false,
   );
   const [deathDate, setDeathDate] = useState(initialPerson?.deathDate ?? '');
+  const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(
+    initialPerson?.photoUrl ?? null,
+  );
+  const [pendingPhoto, setPendingPhoto] = useState<PendingPhotoUpload | null>(
+    null,
+  );
 
   const [submittingTarget, setSubmittingTarget] = useState<
     null | 'directory' | 'relations'
@@ -58,6 +73,25 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
   const [formError, setFormError] = useState<string | null>(null);
 
   const isBusy = submittingTarget !== null;
+  const activePhotoUrl =
+    mode === 'edit' ? currentPhotoUrl : (pendingPhoto?.previewUrl ?? null);
+
+  useEffect(() => {
+    return () => {
+      if (pendingPhoto?.previewUrl) {
+        URL.revokeObjectURL(pendingPhoto.previewUrl);
+      }
+    };
+  }, [pendingPhoto]);
+
+  function handlePendingPhotoChange(next: PendingPhotoUpload | null) {
+    setPendingPhoto((prev) => {
+      if (prev?.previewUrl && prev.previewUrl !== next?.previewUrl) {
+        URL.revokeObjectURL(prev.previewUrl);
+      }
+      return next;
+    });
+  }
 
   function handleDeceasedChange(checked: boolean) {
     setIsDeceased(checked);
@@ -114,11 +148,34 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
       }
 
       const savedId = result.data.id;
-      toast.success(
-        mode === 'create'
-          ? `Data "${result.data.fullName}" berhasil ditambahkan.`
-          : `Data "${result.data.fullName}" berhasil diperbarui.`,
-      );
+
+      if (mode === 'create' && pendingPhoto) {
+        const fd = new FormData();
+        fd.set('personId', savedId);
+        fd.set(
+          'file',
+          new File([pendingPhoto.blob], pendingPhoto.fileName, {
+            type: pendingPhoto.contentType,
+          }),
+        );
+
+        const photoResult = await uploadPersonPhotoAction(fd);
+        if (!photoResult.ok) {
+          toast.warning(
+            `Data "${result.data.fullName}" tersimpan, namun foto gagal diunggah: ${photoResult.error}`,
+          );
+        } else {
+          toast.success(
+            `Data dan foto "${result.data.fullName}" berhasil ditambahkan.`,
+          );
+        }
+      } else {
+        toast.success(
+          mode === 'create'
+            ? `Data "${result.data.fullName}" berhasil ditambahkan.`
+            : `Data "${result.data.fullName}" berhasil diperbarui.`,
+        );
+      }
 
       if (redirectTarget === 'relations') {
         router.push(`/admin/relasi/${savedId}`);
@@ -230,11 +287,12 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
                 >
                   <RadioGroupItem id="gender-l" value="L" />
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <GenderIcon gender="L" className="size-3.5" />
                       Laki-laki
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      Kode L • Putra / Suami
+                      Putra / Suami
                     </span>
                   </div>
                 </label>
@@ -250,11 +308,12 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
                 >
                   <RadioGroupItem id="gender-p" value="P" />
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                      <GenderIcon gender="P" className="size-3.5" />
                       Perempuan
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      Kode P • Putri / Istri
+                      Putri / Istri
                     </span>
                   </div>
                 </label>
@@ -447,6 +506,18 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
 
       {/* Sticky Preview & Status Sidebar */}
       <aside className="space-y-5 lg:sticky lg:top-24 lg:col-span-4">
+        <PersonPhotoField
+          mode={mode}
+          personId={initialPerson?.id}
+          fullName={previewName}
+          gender={gender}
+          isDeceased={isDeceased}
+          photoUrl={activePhotoUrl}
+          disabled={isBusy}
+          onPhotoUpdated={(updated) => setCurrentPhotoUrl(updated.photoUrl ?? null)}
+          onPendingChange={handlePendingPhotoChange}
+        />
+
         <Card className="overflow-hidden border-border bg-card pt-0">
           <CardHeader className="border-b border-border/70 bg-muted/60 pt-5">
             <div className="flex items-center justify-between gap-2">
@@ -477,6 +548,7 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
                   fullName={previewName}
                   gender={gender}
                   isDeceased={isDeceased}
+                  photoUrl={activePhotoUrl}
                   size="md"
                 />
                 <div className="min-w-0 flex-1">
@@ -492,9 +564,7 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
               </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline" className="text-[11px]">
-                  {gender === 'L' ? 'Laki-laki' : 'Perempuan'}
-                </Badge>
+                <GenderBadge gender={gender} size="sm" />
                 {generation ? (
                   <Badge variant="secondary" className="text-[11px]">
                     {getGenerationLabel(generation)}
