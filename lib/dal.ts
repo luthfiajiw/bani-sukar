@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { io } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AUTH_COOKIE_NAME, verifyJwtToken } from '@/lib/jwt';
@@ -22,6 +23,9 @@ export const getSession = cache(async (): Promise<AppSession | null> => {
       return null;
     }
 
+    // `jwtVerify` reads `new Date()` to validate token expiry; mark IO so
+    // Next.js excludes verification from prerender/prefetch shells.
+    await io();
     const payload = await verifyJwtToken(token);
     if (!payload) {
       return null;

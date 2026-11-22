@@ -7,7 +7,7 @@ import {
   Baby,
   Calendar,
   ChevronRight,
-  GitFork,
+  GitPullRequest,
   Heart,
   HeartCrack,
   Link2,
@@ -78,7 +78,7 @@ export async function generateMetadata({
 
 function ProfileSkeleton() {
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:py-8">
+    <div className="mx-auto max-w-360 space-y-6 px-4 py-6 sm:px-6 lg:py-8">
       <Skeleton className="h-5 w-72" />
       <Skeleton className="h-44 w-full rounded-xl" />
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -125,7 +125,7 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:py-8">
+    <div className="mx-auto max-w-360 space-y-6 px-4 py-6 sm:px-6 lg:py-8">
       {/* Breadcrumb Lineage Path */}
       <nav
         aria-label="Jalur Nasab"
@@ -299,7 +299,7 @@ async function PersonDetailContent({ params }: PersonProfilePageProps) {
               </p>
             </div>
             <div className="flex size-10 items-center justify-center rounded-lg bg-[#2d4030]/10 text-[#2d4030]">
-              <GitFork className="size-5" />
+              <GitPullRequest className="size-5" />
             </div>
           </CardContent>
         </Card>

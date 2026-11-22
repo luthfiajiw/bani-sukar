@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { PersonAvatar } from '@/components/person-avatar';
+import { H, W } from '@/features/family/layout';
 import type { PersonNodeData } from '@/features/family/types';
 import { formatYearRange } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,10 @@ type PersonFlowNode = Node<PersonNodeData, 'person'>;
 
 const hiddenHandleClass =
   '!size-2 !min-h-0 !min-w-0 !border-0 !bg-transparent opacity-0 pointer-events-none';
+
+// Pin horizontal marriage handles to H / 2 so spouse edges stay strictly level
+// with UnionNode even if text wrapping or font scaling grows the card taller.
+const horizontalHandleStyle = { top: H / 2 };
 
 function PersonNodeComponent({ data, selected }: NodeProps<PersonFlowNode>) {
   const { person, generation, isHighlighted } = data;
@@ -22,8 +27,9 @@ function PersonNodeComponent({ data, selected }: NodeProps<PersonFlowNode>) {
 
   return (
     <div
+      style={{ width: W, minHeight: H }}
       className={cn(
-        'group relative w-[200px] min-h-[84px] cursor-pointer rounded-xl px-2.5 py-2 text-left transition-all duration-200',
+        'group relative flex cursor-pointer flex-col justify-between rounded-xl px-2.5 py-2 text-left transition-all duration-200',
         person.isBloodLine
           ? 'border border-[#d4c3bc] bg-card shadow-xs hover:border-primary hover:shadow-sm'
           : 'border border-dashed border-[#d4c3bc] bg-[#f7f3eb] shadow-xs hover:border-primary hover:shadow-sm',
@@ -49,39 +55,51 @@ function PersonNodeComponent({ data, selected }: NodeProps<PersonFlowNode>) {
         id="left"
         type="source"
         position={Position.Left}
+        style={horizontalHandleStyle}
         className={hiddenHandleClass}
       />
       <Handle
         id="left-target"
         type="target"
         position={Position.Left}
+        style={horizontalHandleStyle}
         className={hiddenHandleClass}
       />
       <Handle
         id="right"
         type="source"
         position={Position.Right}
+        style={horizontalHandleStyle}
         className={hiddenHandleClass}
       />
       <Handle
         id="right-target"
         type="target"
         position={Position.Right}
+        style={horizontalHandleStyle}
         className={hiddenHandleClass}
       />
 
-      <div className="flex items-start gap-2">
+      <div
+        className={cn(
+          'flex gap-2',
+          person.nickname ? 'items-start' : 'items-center',
+        )}
+      >
         <PersonAvatar
           fullName={person.fullName}
           gender={person.gender}
           isDeceased={person.isDeceased}
           size="sm"
-          className="mt-0.5 shrink-0"
+          className={cn('shrink-0', person.nickname && 'mt-0.5')}
         />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-1">
-            <p className="line-clamp-2 text-[12px] font-semibold leading-tight text-foreground group-hover:text-primary">
+            <p
+              title={person.fullName}
+              className="line-clamp-2 text-[12px] font-semibold leading-tight text-foreground group-hover:text-primary"
+            >
               {person.fullName}
             </p>
           </div>

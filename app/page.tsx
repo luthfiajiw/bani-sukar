@@ -15,7 +15,7 @@ function TreeSkeleton() {
   return (
     <div className="flex flex-col">
       <div className="border-b border-border bg-card px-4 py-2.5 sm:px-5">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
+        <div className="mx-auto flex max-w-360 flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Skeleton className="h-8 w-56" />
             <Skeleton className="h-8 w-64" />

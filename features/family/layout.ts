@@ -14,7 +14,7 @@ import type {
 } from './types';
 
 export const W = 200;
-export const H = 84;
+export const H = 100;
 export const UNION_W = 28;
 export const UNION_H = 28;
 export const GAP_SPOUSE = 56;

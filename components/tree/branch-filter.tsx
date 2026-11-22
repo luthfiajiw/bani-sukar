@@ -49,8 +49,8 @@ export function BranchFilter({
   };
 
   return (
-    <div className="border-b border-border bg-card/95 px-3 py-2.5 backdrop-blur-xs sm:px-5">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="border-b border-border bg-card/95 py-2.5 backdrop-blur-xs">
+      <div className="mx-auto flex max-w-360 flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between px-4 sm:px-6">
         {/* Left: Ranting Trah Selector + Search + Pusat */}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="flex items-center gap-2">

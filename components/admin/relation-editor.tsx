@@ -8,7 +8,7 @@ import {
   ArrowUp,
   Baby,
   ExternalLink,
-  GitBranch,
+  GitPullRequest,
   Heart,
   Link2Off,
   Loader2,
@@ -235,11 +235,11 @@ export function RelationEditor({ data }: RelationEditorProps) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
       {/* Left Column: 3-Generation Preview Diagram */}
       <aside className="lg:sticky lg:top-24 lg:col-span-5">
-        <Card className="overflow-hidden border-border bg-card">
-          <CardHeader className="border-b border-border/70 bg-muted/60">
+        <Card className="overflow-hidden border-border bg-card pt-0">
+          <CardHeader className="border-b border-border/70 bg-muted/60 pt-5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <GitBranch className="size-4 text-primary" />
+                <GitPullRequest className="size-4 text-primary" />
                 <CardTitle className="text-sm">
                   Pratinjau Diagram 3 Generasi
                 </CardTitle>

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {
   Baby,
   ExternalLink,
-  GitFork,
+  GitPullRequest,
   Heart,
   Pencil,
   Plus,
@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import { listPersonsAdmin } from '@/features/family/queries';
+import { AdminPagination } from '@/components/admin/admin-pagination';
 import { DeletePersonDialog } from '@/components/admin/delete-person-dialog';
 import { PersonAvatar } from '@/components/person-avatar';
 import { Badge } from '@/components/ui/badge';
@@ -30,11 +31,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateId, formatYearRange, getGenerationLabel } from '@/lib/format';
+import { DEFAULT_PAGE_SIZE, paginateItems } from '@/lib/pagination';
 
 interface SearchParamsValue {
   q?: string;
   gender?: string;
   status?: string;
+  page?: string;
+  pageSize?: string;
 }
 
 async function AnggotaDirectoryContent({
@@ -53,6 +57,9 @@ async function AnggotaDirectoryContent({
     status: status || undefined,
   });
 
+  const pagination = paginateItems(rows, params.page, params.pageSize);
+  const paginatedRows = pagination.items;
+
   const hasFilters = Boolean(q || gender || status);
   const livingCount = rows.filter((r) => !r.isDeceased).length;
   const bloodlineCount = rows.filter((r) => r.isBloodLine).length;
@@ -62,9 +69,6 @@ async function AnggotaDirectoryContent({
       {/* Header & CTA */}
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">
-            Portal Pengurus Keluarga
-          </p>
           <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
             <Users className="size-6 text-primary" />
             Direktori Anggota Bani Sukar
@@ -87,7 +91,9 @@ async function AnggotaDirectoryContent({
         <Card className="py-3.5">
           <CardContent className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground">Total Ditampilkan</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                {hasFilters ? 'Total Sesuai Filter' : 'Total Anggota'}
+              </p>
               <p className="mt-0.5 text-2xl font-bold text-foreground">{rows.length}</p>
             </div>
             <Badge variant="outline">Jiwa</Badge>
@@ -121,6 +127,9 @@ async function AnggotaDirectoryContent({
             action="/admin/anggota"
             className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end"
           >
+            {pagination.pageSize !== DEFAULT_PAGE_SIZE && (
+              <input type="hidden" name="pageSize" value={pagination.pageSize} />
+            )}
             <div className="space-y-1.5 md:col-span-5">
               <label
                 htmlFor="filter-q"
@@ -240,7 +249,7 @@ async function AnggotaDirectoryContent({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row) => (
+                {paginatedRows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="whitespace-normal">
                       <div className="flex items-center gap-3">
@@ -347,7 +356,7 @@ async function AnggotaDirectoryContent({
                         </Button>
                         <Button variant="secondary" size="xs" asChild>
                           <Link href={`/admin/relasi/${row.id}`}>
-                            <GitFork className="size-3.5" />
+                            <GitPullRequest className="size-3.5" />
                             Relasi
                           </Link>
                         </Button>
@@ -375,7 +384,7 @@ async function AnggotaDirectoryContent({
 
           {/* Mobile & Tablet Card List */}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden">
-            {rows.map((row) => (
+            {paginatedRows.map((row) => (
               <Card key={row.id} className="gap-3 py-4">
                 <CardHeader className="pb-0">
                   <div className="flex items-start justify-between gap-3">
@@ -452,7 +461,7 @@ async function AnggotaDirectoryContent({
                     </Button>
                     <Button variant="secondary" size="xs" asChild>
                       <Link href={`/admin/relasi/${row.id}`}>
-                        <GitFork className="size-3.5" />
+                        <GitPullRequest className="size-3.5" />
                         Relasi
                       </Link>
                     </Button>
@@ -475,6 +484,23 @@ async function AnggotaDirectoryContent({
               </Card>
             ))}
           </div>
+
+          <AdminPagination
+            basePath="/admin/anggota"
+            currentPage={pagination.currentPage}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            hasPrevPage={pagination.hasPrevPage}
+            hasNextPage={pagination.hasNextPage}
+            pageNumbers={pagination.pageNumbers}
+            queryParams={{
+              q: q || undefined,
+              gender: gender || undefined,
+              status: status || undefined,
+            }}
+          />
         </>
       )}
     </div>
@@ -508,7 +534,7 @@ export default function AdminAnggotaPage({
   searchParams: Promise<SearchParamsValue>;
 }) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-360 px-4 py-6 sm:px-6 lg:px-8">
       <Suspense fallback={<AnggotaDirectorySkeleton />}>
         <AnggotaDirectoryContent searchParamsPromise={searchParams} />
       </Suspense>

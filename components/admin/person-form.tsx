@@ -447,8 +447,8 @@ export function PersonForm({ mode, initialPerson, generation }: PersonFormProps)
 
       {/* Sticky Preview & Status Sidebar */}
       <aside className="space-y-5 lg:sticky lg:top-24 lg:col-span-4">
-        <Card className="overflow-hidden border-border bg-card">
-          <CardHeader className="border-b border-border/70 bg-muted/60">
+        <Card className="overflow-hidden border-border bg-card pt-0">
+          <CardHeader className="border-b border-border/70 bg-muted/60 pt-5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4 text-accent" />

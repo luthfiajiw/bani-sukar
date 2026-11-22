@@ -689,4 +689,22 @@ describe('Bani Sukar Domain — Deterministic Family-Block Layout Engine', () =>
     // Still returns full list of 6 branches for the selector toolbar
     expect(filtered.branches).toHaveLength(6);
   });
+
+  it('aligns couple union vertical center with partner horizontal handle anchor (H / 2)', () => {
+    const { persons, unions } = createBaniSukarGen1To4Fixture();
+    const graph = buildGraph(persons, unions);
+    const layout = computeLayout(graph);
+
+    const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
+    const rootUnionNode = nodeById.get('u-root')!;
+    const sukarNode = nodeById.get('p-sukar')!;
+    const sadirahNode = nodeById.get('p-sadirah')!;
+
+    expect(rootUnionNode.position.y + UNION_H / 2).toBe(
+      sukarNode.position.y + H / 2
+    );
+    expect(rootUnionNode.position.y + UNION_H / 2).toBe(
+      sadirahNode.position.y + H / 2
+    );
+  });
 });

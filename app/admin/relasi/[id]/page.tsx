@@ -1,10 +1,17 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, GitFork } from 'lucide-react';
+import { GitPullRequest } from 'lucide-react';
 import { getRelationEditorData } from '@/features/family/queries';
 import { RelationEditor } from '@/components/admin/relation-editor';
-import { Button } from '@/components/ui/button';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { Skeleton } from '@/components/ui/skeleton';
 
 async function RelationEditorContent({
@@ -20,30 +27,32 @@ async function RelationEditorContent({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Link href="/admin/anggota" className="hover:text-primary">
-              Direktori Anggota
-            </Link>
-            <span>/</span>
-            <span className="text-foreground">Hubung Relasi Silsilah</span>
-          </div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
-            <GitFork className="size-6 text-primary" />
-            Hubung Relasi: {data.person.fullName}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Atur garis leluhur, pasangan pernikahan, dan urutan kelahiran keturunan secara terstruktur.
-          </p>
-        </div>
+      <div className="flex flex-col gap-4 border-b border-border pb-5">
+        <div className="space-y-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/admin/anggota">Direktori Anggota</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Hubung Relasi Silsilah</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
 
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/admin/anggota">
-            <ArrowLeft className="size-4" />
-            Kembali ke Direktori
-          </Link>
-        </Button>
+          <div className="flex flex-col gap-1">
+            <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
+              <GitPullRequest className="size-6 text-primary" />
+              Hubung Relasi: {data.person.fullName}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Atur garis leluhur, pasangan pernikahan, dan urutan kelahiran keturunan secara terstruktur.
+            </p>
+          </div>
+        </div>
       </div>
 
       <RelationEditor data={data} />
@@ -78,7 +87,7 @@ export default function RelationEditorPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-360 px-4 py-6 sm:px-6 lg:px-8">
       <Suspense fallback={<RelationEditorSkeleton />}>
         <RelationEditorContent paramsPromise={params} />
       </Suspense>

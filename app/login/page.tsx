@@ -79,9 +79,6 @@ export default function LoginPage() {
           <p className="text-[11px] font-semibold tracking-[0.2em] text-accent uppercase">
             Trah Bani Sukar &amp; Sadirah
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
-            Portal Pengurus Keluarga
-          </h1>
         </div>
 
         <Card className="border-border bg-card shadow-md">

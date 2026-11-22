@@ -5,6 +5,14 @@ import { ArrowLeft, ExternalLink, GitBranch, UserCog } from 'lucide-react';
 import { getPersonDetail } from '@/features/family/queries';
 import { PersonForm } from '@/components/admin/person-form';
 import { DeletePersonDialog } from '@/components/admin/delete-person-dialog';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -23,34 +31,39 @@ async function EditAnggotaContent({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Link href="/admin/anggota" className="hover:text-primary">
-              Direktori Anggota
-            </Link>
-            <span>/</span>
-            <Link href={`/anggota/${detail.person.id}`} className="hover:text-primary">
-              {detail.person.fullName}
-            </Link>
-            <span>/</span>
-            <span className="text-foreground">Sunting Data</span>
+        <div className="space-y-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/admin/anggota">Direktori Anggota</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href={`/anggota/${detail.person.id}`}>{detail.person.fullName}</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Sunting Data</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+
+          <div className="flex flex-col gap-1">
+            <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
+              <UserCog className="size-6 text-primary" />
+              Sunting Profil: {detail.person.fullName}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Perbarui identitas diri, status kehidupan, atau lanjutkan ke pengaturan relasi silsilah.
+            </p>
           </div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground">
-            <UserCog className="size-6 text-primary" />
-            Sunting Profil: {detail.person.fullName}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Perbarui identitas diri, status kehidupan, atau lanjutkan ke pengaturan relasi silsilah.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/admin/anggota">
-              <ArrowLeft className="size-4" />
-              Direktori
-            </Link>
-          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link href={`/anggota/${detail.person.id}`}>
               <ExternalLink className="size-4" />

@@ -9,7 +9,7 @@ async function AdminAuthGate({ children }: { children: ReactNode }) {
 
 function AdminShellSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-360 px-4 py-8 sm:px-6 lg:px-8">
       <div className="h-8 w-56 animate-pulse rounded-md bg-secondary" />
       <div className="mt-6 h-64 w-full animate-pulse rounded-xl bg-secondary/70" />
     </div>

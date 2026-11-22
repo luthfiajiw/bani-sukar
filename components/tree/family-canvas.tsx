@@ -19,6 +19,7 @@ import { BranchFilter } from '@/components/tree/branch-filter';
 import { PersonNode } from '@/components/tree/person-node';
 import { UnionNode } from '@/components/tree/union-node';
 import { Button } from '@/components/ui/button';
+import { H, W } from '@/features/family/layout';
 import type {
   PersonNodeData,
   TreeLayoutResult,
@@ -60,7 +61,7 @@ function FamilyCanvasInner({
         return false;
       }
 
-      setCenter(targetNode.position.x + 100, targetNode.position.y + 42, {
+      setCenter(targetNode.position.x + W / 2, targetNode.position.y + H / 2, {
         zoom: 1.15,
         duration: 500,
       });
@@ -203,6 +204,7 @@ function FamilyCanvasInner({
           zoomOnPinch
           minZoom={0.15}
           maxZoom={1.8}
+          style={{ backgroundColor: 'var(--background)' }}
           proOptions={{ hideAttribution: true }}
         >
           <Background
@@ -210,6 +212,7 @@ function FamilyCanvasInner({
             gap={24}
             size={1.5}
             color="#d4c3bc"
+            bgColor="var(--background)"
           />
 
           {/* Bottom-left zoom controls */}
