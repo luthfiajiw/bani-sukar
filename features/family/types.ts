@@ -42,6 +42,7 @@ export interface PersonNodeData extends Record<string, unknown> {
   spouseNames: string[];
   branchRootId: string | null;
   isHighlighted?: boolean;
+  continuationLabel?: string | null;
 }
 
 export interface UnionNodeData extends Record<string, unknown> {
@@ -55,6 +56,8 @@ export interface TreeLayoutResult {
     id: string;
     type: 'person' | 'union';
     position: { x: number; y: number };
+    width?: number;
+    height?: number;
     data: PersonNodeData | UnionNodeData;
   }>;
   edges: Array<{

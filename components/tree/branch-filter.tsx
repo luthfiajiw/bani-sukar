@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Crosshair, GitBranch } from 'lucide-react';
+import { Crosshair, GitBranch, Printer } from 'lucide-react';
 import type { Person } from '@/features/family/types';
 import { Button } from '@/components/ui/button';
 import { TreeSearch } from '@/components/tree/tree-search';
@@ -91,6 +92,24 @@ export function BranchFilter({
             >
               <Crosshair className="size-3.5 text-primary" />
               <span>Pusat</span>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-8.5 shrink-0 gap-1.5 px-3 text-xs font-medium"
+              title="Ekspor ke PDF, PNG, ZIP, atau SVG siap cetak"
+            >
+              <Link
+                href={
+                  selectedBranchId
+                    ? `/cetak?cabang=${encodeURIComponent(selectedBranchId)}`
+                    : '/cetak'
+                }
+              >
+                <Printer className="size-3.5 text-primary" />
+                <span>Ekspor / Cetak</span>
+              </Link>
             </Button>
           </div>
         </div>

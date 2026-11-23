@@ -1,3 +1,4 @@
+import { filterGraphByScope } from '../export/scope';
 import {
   getBranches,
   getBranchRootId,
@@ -22,10 +23,27 @@ export const GAP_SIBLING = 36;
 export const GAP_FAMILY = 72;
 export const ROW_H = 210;
 
+export interface ComputeLayoutOptions {
+  branchId?: string | null;
+  subtreeRootPersonId?: string | null;
+  minGeneration?: number;
+  maxGeneration?: number;
+  orientation?: 'TOP_DOWN' | 'LEFT_RIGHT';
+  cardWidth?: number;
+  cardHeight?: number;
+  cardSizeByPersonId?: Map<string, { width: number; height: number }>;
+  rowHeightByGeneration?: Map<number, number>;
+  gapSpouse?: number;
+  gapSibling?: number;
+  gapFamily?: number;
+  rowGap?: number;
+  continuationLabelsByPersonId?: Map<string, string>;
+}
+
 interface HeaderPersonPlacement {
   person: Person;
-  relX: number;
-  relY: number;
+  relCross: number;
+  relPrimary: number;
 }
 
 interface HeaderUnionPlacement {
@@ -34,14 +52,14 @@ interface HeaderUnionPlacement {
   leftPartnerId: string | null;
   rightPartnerId: string | null;
   singlePartnerId: string | null;
-  relX: number;
-  relY: number;
+  relCross: number;
+  relPrimary: number;
 }
 
 interface UnionChildrenGroup {
   union: Union;
   childrenBlocks: FamilyBlock[];
-  groupWidth: number;
+  groupCrossSpan: number;
 }
 
 interface FamilyBlock {
@@ -49,22 +67,74 @@ interface FamilyBlock {
   generation: number;
   headerPersons: HeaderPersonPlacement[];
   headerUnions: HeaderUnionPlacement[];
-  headerWidth: number;
+  headerCrossSpan: number;
   unionGroups: UnionChildrenGroup[];
-  totalChildrenWidth: number;
-  width: number;
+  totalChildrenCrossSpan: number;
+  crossSpan: number;
 }
 
 export function computeLayout(
   graph: FamilyGraph,
-  options?: { branchId?: string | null }
+  options?: ComputeLayoutOptions,
 ): TreeLayoutResult {
   const branches = getBranches(graph);
-  const rootUnions = getRootUnions(graph);
+
+  const hasSubtreeFilter = Boolean(options?.subtreeRootPersonId);
+  const hasGenFilter =
+    options?.minGeneration !== undefined ||
+    options?.maxGeneration !== undefined;
+
+  const activeGraph =
+    hasSubtreeFilter || hasGenFilter
+      ? filterGraphByScope(graph, {
+          branchId: options?.branchId ?? null,
+          subtreeRootPersonId: options?.subtreeRootPersonId ?? null,
+          minGeneration: options?.minGeneration ?? 1,
+          maxGeneration: options?.maxGeneration ?? 99,
+        })
+      : graph;
+
+  const orientation = options?.orientation ?? 'TOP_DOWN';
+  const isTopDown = orientation === 'TOP_DOWN';
+
+  const defaultCardW = options?.cardWidth ?? W;
+  const defaultCardH = options?.cardHeight ?? H;
+  const gapSpouse = options?.gapSpouse ?? GAP_SPOUSE;
+  const gapSibling = options?.gapSibling ?? GAP_SIBLING;
+  const gapFamily = options?.gapFamily ?? GAP_FAMILY;
+  const rowGap = options?.rowGap ?? ROW_H - H;
+
+  const unionCross = isTopDown ? UNION_W : UNION_H;
+  const unionPrimary = isTopDown ? UNION_H : UNION_W;
+
+  function getPersonSize(personId: string): { width: number; height: number } {
+    const custom = options?.cardSizeByPersonId?.get(personId);
+    return {
+      width: custom?.width ?? defaultCardW,
+      height: custom?.height ?? defaultCardH,
+    };
+  }
+
+  function getCrossSpan(personId: string): number {
+    const s = getPersonSize(personId);
+    return isTopDown ? s.width : s.height;
+  }
+
+  function getPrimarySpan(personId: string): number {
+    const s = getPersonSize(personId);
+    return isTopDown ? s.height : s.width;
+  }
+
+  const rootUnions = getRootUnions(activeGraph);
   const rootUnionIds = new Set(rootUnions.map((u) => u.id));
 
+  // When scope filtering already stripped non-branch nodes, branch filter is already applied,
+  // unless we are running directly on the unfiltered graph with only `branchId`.
   const activeBranchId =
-    options?.branchId && branches.some((b) => b.id === options.branchId)
+    !hasSubtreeFilter &&
+    !hasGenFilter &&
+    options?.branchId &&
+    branches.some((b) => b.id === options.branchId)
       ? options.branchId
       : null;
 
@@ -74,7 +144,7 @@ export function computeLayout(
   function buildBlock(focalPerson: Person, generation: number): FamilyBlock {
     visitedPersons.add(focalPerson.id);
 
-    const rawUnions = graph.unionsByPerson.get(focalPerson.id) ?? [];
+    const rawUnions = activeGraph.unionsByPerson.get(focalPerson.id) ?? [];
     const blockUnions = rawUnions.filter((u) => !visitedUnions.has(u.id));
 
     for (const u of blockUnions) {
@@ -83,58 +153,66 @@ export function computeLayout(
 
     const headerPersons: HeaderPersonPlacement[] = [];
     const headerUnions: HeaderUnionPlacement[] = [];
-    let headerWidth = W;
+    let headerCrossSpan = getCrossSpan(focalPerson.id);
 
     if (blockUnions.length === 0) {
       headerPersons.push({
         person: focalPerson,
-        relX: 0,
-        relY: 0,
+        relCross: 0,
+        relPrimary: 0,
       });
-      headerWidth = W;
+      headerCrossSpan = getCrossSpan(focalPerson.id);
     } else if (blockUnions.length === 1) {
       const u = blockUnions[0];
-      const spouseId =
-        u.husbandId === focalPerson.id ? u.wifeId : u.husbandId;
+      const spouseId = u.husbandId === focalPerson.id ? u.wifeId : u.husbandId;
       const spouse =
         spouseId && !visitedPersons.has(spouseId)
-          ? (graph.persons.get(spouseId) ?? null)
+          ? (activeGraph.persons.get(spouseId) ?? null)
           : null;
 
       if (spouse) {
         visitedPersons.add(spouse.id);
-        const focalIsLeft =
+        const focalIsFirst =
           u.husbandId === focalPerson.id ||
           (focalPerson.gender === 'L' && spouse.gender === 'P');
 
-        const leftPerson = focalIsLeft ? focalPerson : spouse;
-        const rightPerson = focalIsLeft ? spouse : focalPerson;
+        const firstPerson = focalIsFirst ? focalPerson : spouse;
+        const secondPerson = focalIsFirst ? spouse : focalPerson;
+
+        const firstCross = getCrossSpan(firstPerson.id);
+        const secondCross = getCrossSpan(secondPerson.id);
+        const maxPrimary = Math.max(
+          getPrimarySpan(firstPerson.id),
+          getPrimarySpan(secondPerson.id),
+        );
 
         headerPersons.push({
-          person: leftPerson,
-          relX: 0,
-          relY: 0,
+          person: firstPerson,
+          relCross: 0,
+          relPrimary: 0,
         });
         headerUnions.push({
           union: u,
           spouse,
-          leftPartnerId: leftPerson.id,
-          rightPartnerId: rightPerson.id,
+          leftPartnerId: firstPerson.id,
+          rightPartnerId: secondPerson.id,
           singlePartnerId: null,
-          relX: W + (GAP_SPOUSE - UNION_W) / 2,
-          relY: (H - UNION_H) / 2,
+          relCross: firstCross + (gapSpouse - unionCross) / 2,
+          relPrimary: (maxPrimary - unionPrimary) / 2,
         });
         headerPersons.push({
-          person: rightPerson,
-          relX: W + GAP_SPOUSE,
-          relY: 0,
+          person: secondPerson,
+          relCross: firstCross + gapSpouse,
+          relPrimary: 0,
         });
-        headerWidth = W + GAP_SPOUSE + W;
+        headerCrossSpan = firstCross + gapSpouse + secondCross;
       } else {
+        const focalCross = getCrossSpan(focalPerson.id);
+        const focalPrimary = getPrimarySpan(focalPerson.id);
         headerPersons.push({
           person: focalPerson,
-          relX: 0,
-          relY: 0,
+          relCross: 0,
+          relPrimary: 0,
         });
         headerUnions.push({
           union: u,
@@ -142,14 +220,14 @@ export function computeLayout(
           leftPartnerId: null,
           rightPartnerId: null,
           singlePartnerId: focalPerson.id,
-          relX: (W - UNION_W) / 2,
-          relY: H + 16,
+          relCross: (focalCross - unionCross) / 2,
+          relPrimary: focalPrimary + 16,
         });
-        headerWidth = W;
+        headerCrossSpan = focalCross;
       }
     } else {
-      // Polygamy / remarriage (2+ unions): place first spouse on left of focalPerson, remaining spouses on right
-      let cursorX = 0;
+      // Polygamy / remarriage (2+ unions): place first spouse before focalPerson, remaining spouses after
+      let cursorCross = 0;
       const firstUnion = blockUnions[0];
       const firstSpouseId =
         firstUnion.husbandId === focalPerson.id
@@ -157,25 +235,34 @@ export function computeLayout(
           : firstUnion.husbandId;
       const firstSpouse =
         firstSpouseId && !visitedPersons.has(firstSpouseId)
-          ? (graph.persons.get(firstSpouseId) ?? null)
+          ? (activeGraph.persons.get(firstSpouseId) ?? null)
           : null;
 
-      let focalRelX = 0;
+      const focalCross = getCrossSpan(focalPerson.id);
+      const focalPrimary = getPrimarySpan(focalPerson.id);
+      let focalRelCross = 0;
 
       if (firstSpouse) {
         visitedPersons.add(firstSpouse.id);
+        const firstSpouseCross = getCrossSpan(firstSpouse.id);
+        const maxPrimary = Math.max(
+          getPrimarySpan(firstSpouse.id),
+          focalPrimary,
+        );
+
         headerPersons.push({
           person: firstSpouse,
-          relX: cursorX,
-          relY: 0,
+          relCross: cursorCross,
+          relPrimary: 0,
         });
-        const unionRelX = cursorX + W + (GAP_SPOUSE - UNION_W) / 2;
-        cursorX += W + GAP_SPOUSE;
-        focalRelX = cursorX;
+        const unionRelCross =
+          cursorCross + firstSpouseCross + (gapSpouse - unionCross) / 2;
+        cursorCross += firstSpouseCross + gapSpouse;
+        focalRelCross = cursorCross;
         headerPersons.push({
           person: focalPerson,
-          relX: focalRelX,
-          relY: 0,
+          relCross: focalRelCross,
+          relPrimary: 0,
         });
         headerUnions.push({
           union: firstUnion,
@@ -183,16 +270,16 @@ export function computeLayout(
           leftPartnerId: firstSpouse.id,
           rightPartnerId: focalPerson.id,
           singlePartnerId: null,
-          relX: unionRelX,
-          relY: (H - UNION_H) / 2,
+          relCross: unionRelCross,
+          relPrimary: (maxPrimary - unionPrimary) / 2,
         });
-        cursorX += W;
+        cursorCross += focalCross;
       } else {
-        focalRelX = cursorX;
+        focalRelCross = cursorCross;
         headerPersons.push({
           person: focalPerson,
-          relX: focalRelX,
-          relY: 0,
+          relCross: focalRelCross,
+          relPrimary: 0,
         });
         headerUnions.push({
           union: firstUnion,
@@ -200,106 +287,104 @@ export function computeLayout(
           leftPartnerId: null,
           rightPartnerId: null,
           singlePartnerId: focalPerson.id,
-          relX: focalRelX + (W - UNION_W) / 2,
-          relY: H + 16,
+          relCross: focalRelCross + (focalCross - unionCross) / 2,
+          relPrimary: focalPrimary + 16,
         });
-        cursorX += W;
+        cursorCross += focalCross;
       }
 
       for (let i = 1; i < blockUnions.length; i++) {
         const u = blockUnions[i];
-        const spouseId =
-          u.husbandId === focalPerson.id ? u.wifeId : u.husbandId;
+        const spouseId = u.husbandId === focalPerson.id ? u.wifeId : u.husbandId;
         const spouse =
           spouseId && !visitedPersons.has(spouseId)
-            ? (graph.persons.get(spouseId) ?? null)
+            ? (activeGraph.persons.get(spouseId) ?? null)
             : null;
 
         if (spouse) {
           visitedPersons.add(spouse.id);
-          const unionRelX = cursorX + (GAP_SPOUSE - UNION_W) / 2;
-          const spouseRelX = cursorX + GAP_SPOUSE;
+          const spouseCross = getCrossSpan(spouse.id);
+          const maxPrimary = Math.max(focalPrimary, getPrimarySpan(spouse.id));
+          const unionRelCross = cursorCross + (gapSpouse - unionCross) / 2;
+          const spouseRelCross = cursorCross + gapSpouse;
           headerUnions.push({
             union: u,
             spouse,
             leftPartnerId: focalPerson.id,
             rightPartnerId: spouse.id,
             singlePartnerId: null,
-            relX: unionRelX,
-            relY: (H - UNION_H) / 2,
+            relCross: unionRelCross,
+            relPrimary: (maxPrimary - unionPrimary) / 2,
           });
           headerPersons.push({
             person: spouse,
-            relX: spouseRelX,
-            relY: 0,
+            relCross: spouseRelCross,
+            relPrimary: 0,
           });
-          cursorX += GAP_SPOUSE + W;
+          cursorCross += gapSpouse + spouseCross;
         } else {
-          const unionRelX = cursorX + (GAP_SPOUSE - UNION_W) / 2;
+          const unionRelCross = cursorCross + (gapSpouse - unionCross) / 2;
           headerUnions.push({
             union: u,
             spouse: null,
             leftPartnerId: null,
             rightPartnerId: null,
             singlePartnerId: focalPerson.id,
-            relX: unionRelX,
-            relY: H + 16,
+            relCross: unionRelCross,
+            relPrimary: focalPrimary + 16,
           });
-          cursorX += GAP_SPOUSE;
+          cursorCross += gapSpouse;
         }
       }
 
-      headerWidth = cursorX;
+      headerCrossSpan = cursorCross;
     }
 
     const unionGroups: UnionChildrenGroup[] = [];
     for (const u of blockUnions) {
-      let children = (graph.childrenByUnion.get(u.id) ?? []).filter(
-        (c) => !visitedPersons.has(c.id)
+      let children = (activeGraph.childrenByUnion.get(u.id) ?? []).filter(
+        (c) => !visitedPersons.has(c.id),
       );
 
-      // Apply branch filtering at the root union level
       if (activeBranchId && rootUnionIds.has(u.id)) {
         children = children.filter((c) => c.id === activeBranchId);
       }
 
       const childrenBlocks = children.map((child) =>
-        buildBlock(child, generation + 1)
+        buildBlock(child, generation + 1),
       );
 
-      const groupWidth =
+      const groupCrossSpan =
         childrenBlocks.length > 0
-          ? childrenBlocks.reduce((acc, b) => acc + b.width, 0) +
-            (childrenBlocks.length - 1) * GAP_SIBLING
+          ? childrenBlocks.reduce((acc, b) => acc + b.crossSpan, 0) +
+            (childrenBlocks.length - 1) * gapSibling
           : 0;
 
       unionGroups.push({
         union: u,
         childrenBlocks,
-        groupWidth,
+        groupCrossSpan,
       });
     }
 
-    const nonEmptyGroups = unionGroups.filter(
-      (g) => g.childrenBlocks.length > 0
-    );
-    const totalChildrenWidth =
+    const nonEmptyGroups = unionGroups.filter((g) => g.childrenBlocks.length > 0);
+    const totalChildrenCrossSpan =
       nonEmptyGroups.length > 0
-        ? nonEmptyGroups.reduce((acc, g) => acc + g.groupWidth, 0) +
-          (nonEmptyGroups.length - 1) * GAP_FAMILY
+        ? nonEmptyGroups.reduce((acc, g) => acc + g.groupCrossSpan, 0) +
+          (nonEmptyGroups.length - 1) * gapFamily
         : 0;
 
-    const width = Math.max(headerWidth, totalChildrenWidth);
+    const crossSpan = Math.max(headerCrossSpan, totalChildrenCrossSpan);
 
     return {
       focalPerson,
       generation,
       headerPersons,
       headerUnions,
-      headerWidth,
+      headerCrossSpan,
       unionGroups,
-      totalChildrenWidth,
-      width,
+      totalChildrenCrossSpan,
+      crossSpan,
     };
   }
 
@@ -308,10 +393,10 @@ export function computeLayout(
   for (const rootUnion of rootUnions) {
     if (visitedUnions.has(rootUnion.id)) continue;
     const husband = rootUnion.husbandId
-      ? graph.persons.get(rootUnion.husbandId)
+      ? activeGraph.persons.get(rootUnion.husbandId)
       : undefined;
     const wife = rootUnion.wifeId
-      ? graph.persons.get(rootUnion.wifeId)
+      ? activeGraph.persons.get(rootUnion.wifeId)
       : undefined;
     const focal = husband ?? wife;
     if (focal && !visitedPersons.has(focal.id)) {
@@ -319,12 +404,11 @@ export function computeLayout(
     }
   }
 
-  // If no branch filter is active, include any remaining unvisited root/disconnected persons
+  // If no branch filter is active on the full graph, include any remaining unvisited root/disconnected persons
   if (!activeBranchId) {
-    const remainingPersons = Array.from(graph.persons.values()).filter(
-      (p) => !visitedPersons.has(p.id)
+    const remainingPersons = Array.from(activeGraph.persons.values()).filter(
+      (p) => !visitedPersons.has(p.id),
     );
-    // Prioritize persons without parentUnionId who are bloodline
     remainingPersons.sort((a, b) => {
       if (a.isBloodLine !== b.isBloodLine) return a.isBloodLine ? -1 : 1;
       return a.fullName.localeCompare(b.fullName, 'id');
@@ -332,9 +416,59 @@ export function computeLayout(
 
     for (const person of remainingPersons) {
       if (!visitedPersons.has(person.id)) {
-        const gen = getGeneration(graph, person.id);
+        const gen = getGeneration(activeGraph, person.id);
         rootBlocks.push(buildBlock(person, gen));
       }
+    }
+  }
+
+  // Compute primary-axis coordinates per generation using rowHeightByGeneration and actual card spans
+  const maxPersonPrimaryByGen = new Map<number, number>();
+  const maxUnionExtentByGen = new Map<number, number>();
+  let minGen = Number.POSITIVE_INFINITY;
+  let maxGen = 0;
+
+  function collectGenMetrics(block: FamilyBlock) {
+    if (block.generation < minGen) minGen = block.generation;
+    if (block.generation > maxGen) maxGen = block.generation;
+
+    for (const hp of block.headerPersons) {
+      const span = hp.relPrimary + getPrimarySpan(hp.person.id);
+      const prev = maxPersonPrimaryByGen.get(block.generation) ?? 0;
+      if (span > prev) maxPersonPrimaryByGen.set(block.generation, span);
+    }
+
+    for (const hu of block.headerUnions) {
+      const extent = hu.relPrimary + unionPrimary;
+      const prev = maxUnionExtentByGen.get(block.generation) ?? 0;
+      if (extent > prev) maxUnionExtentByGen.set(block.generation, extent);
+    }
+
+    for (const group of block.unionGroups) {
+      for (const childBlock of group.childrenBlocks) {
+        collectGenMetrics(childBlock);
+      }
+    }
+  }
+
+  for (const rb of rootBlocks) {
+    collectGenMetrics(rb);
+  }
+
+  const genPrimaryStart = new Map<number, number>();
+  if (rootBlocks.length > 0 && Number.isFinite(minGen)) {
+    let cursorPrimary = 0;
+    for (let g = minGen; g <= maxGen; g++) {
+      genPrimaryStart.set(g, cursorPrimary);
+      const defaultSpan = isTopDown ? defaultCardH : defaultCardW;
+      const configuredRowH = isTopDown
+        ? (options?.rowHeightByGeneration?.get(g) ?? defaultSpan)
+        : defaultSpan;
+      const actualCardSpan = maxPersonPrimaryByGen.get(g) ?? defaultSpan;
+      const cardRowSpan = Math.max(defaultSpan, configuredRowH, actualCardSpan);
+      const unionExtent = maxUnionExtentByGen.get(g) ?? 0;
+      const step = Math.max(cardRowSpan + rowGap, unionExtent + 24);
+      cursorPrimary += step;
     }
   }
 
@@ -343,11 +477,11 @@ export function computeLayout(
   const renderedPersons: Person[] = [];
 
   function getSpouseNamesForPerson(personId: string): string[] {
-    const pUnions = graph.unionsByPerson.get(personId) ?? [];
+    const pUnions = activeGraph.unionsByPerson.get(personId) ?? [];
     const names: string[] = [];
     for (const u of pUnions) {
       const partnerId = u.husbandId === personId ? u.wifeId : u.husbandId;
-      const partner = partnerId ? graph.persons.get(partnerId) : undefined;
+      const partner = partnerId ? activeGraph.persons.get(partnerId) : undefined;
       if (partner) {
         names.push(partner.fullName);
       }
@@ -355,36 +489,51 @@ export function computeLayout(
     return names;
   }
 
-  function placeBlock(block: FamilyBlock, leftX: number) {
-    const baseY = (block.generation - 1) * ROW_H;
-    const headerStartX = leftX + (block.width - block.headerWidth) / 2;
+  function placeBlock(block: FamilyBlock, startCross: number) {
+    const basePrimary = genPrimaryStart.get(block.generation) ?? 0;
+    const headerStartCross =
+      startCross + (block.crossSpan - block.headerCrossSpan) / 2;
 
     for (const hp of block.headerPersons) {
       const person = hp.person;
       renderedPersons.push(person);
 
+      const size = getPersonSize(person.id);
+      const continuationLabel =
+        options?.continuationLabelsByPersonId?.get(person.id);
+
       const nodeData: PersonNodeData = {
         person,
-        generation: block.generation,
+        generation:
+          hasSubtreeFilter || hasGenFilter
+            ? getGeneration(graph, person.id)
+            : block.generation,
         spouseNames: getSpouseNamesForPerson(person.id),
         branchRootId: getBranchRootId(graph, person.id),
+        ...(continuationLabel !== undefined ? { continuationLabel } : {}),
       };
+
+      const crossCoord = Math.round(headerStartCross + hp.relCross);
+      const primaryCoord = Math.round(basePrimary + hp.relPrimary);
 
       nodes.push({
         id: person.id,
         type: 'person',
-        position: {
-          x: Math.round(headerStartX + hp.relX),
-          y: Math.round(baseY + hp.relY),
-        },
+        position: isTopDown
+          ? { x: crossCoord, y: primaryCoord }
+          : { x: primaryCoord, y: crossCoord },
+        width: size.width,
+        height: size.height,
         data: nodeData,
       });
     }
 
     for (const hu of block.headerUnions) {
       const u = hu.union;
-      const husband = u.husbandId ? graph.persons.get(u.husbandId) : undefined;
-      const wife = u.wifeId ? graph.persons.get(u.wifeId) : undefined;
+      const husband = u.husbandId
+        ? activeGraph.persons.get(u.husbandId)
+        : undefined;
+      const wife = u.wifeId ? activeGraph.persons.get(u.wifeId) : undefined;
 
       const unionData: UnionNodeData = {
         union: u,
@@ -392,13 +541,17 @@ export function computeLayout(
         wifeName: wife?.fullName,
       };
 
+      const crossCoord = Math.round(headerStartCross + hu.relCross);
+      const primaryCoord = Math.round(basePrimary + hu.relPrimary);
+
       nodes.push({
         id: u.id,
         type: 'union',
-        position: {
-          x: Math.round(headerStartX + hu.relX),
-          y: Math.round(baseY + hu.relY),
-        },
+        position: isTopDown
+          ? { x: crossCoord, y: primaryCoord }
+          : { x: primaryCoord, y: crossCoord },
+        width: UNION_W,
+        height: UNION_H,
         data: unionData,
       });
 
@@ -419,8 +572,8 @@ export function computeLayout(
           id: `edge-spouse-${hu.leftPartnerId}-${u.id}`,
           source: hu.leftPartnerId,
           target: u.id,
-          sourceHandle: 'right',
-          targetHandle: 'left',
+          sourceHandle: isTopDown ? 'right' : 'bottom',
+          targetHandle: isTopDown ? 'left' : 'top',
           type: 'straight',
           style: { ...spouseEdgeStyle },
           data: { kind: 'spouse', status: u.status },
@@ -429,8 +582,8 @@ export function computeLayout(
           id: `edge-spouse-${hu.rightPartnerId}-${u.id}`,
           source: hu.rightPartnerId,
           target: u.id,
-          sourceHandle: 'left',
-          targetHandle: 'right',
+          sourceHandle: isTopDown ? 'left' : 'top',
+          targetHandle: isTopDown ? 'right' : 'bottom',
           type: 'straight',
           style: { ...spouseEdgeStyle },
           data: { kind: 'spouse', status: u.status },
@@ -440,8 +593,8 @@ export function computeLayout(
           id: `edge-spouse-${hu.singlePartnerId}-${u.id}`,
           source: hu.singlePartnerId,
           target: u.id,
-          sourceHandle: 'bottom',
-          targetHandle: 'top',
+          sourceHandle: isTopDown ? 'bottom' : 'right',
+          targetHandle: isTopDown ? 'top' : 'left',
           type: 'straight',
           style: { ...spouseEdgeStyle },
           data: { kind: 'spouse', status: u.status },
@@ -450,25 +603,26 @@ export function computeLayout(
     }
 
     const nonEmptyGroups = block.unionGroups.filter(
-      (g) => g.childrenBlocks.length > 0
+      (g) => g.childrenBlocks.length > 0,
     );
     if (nonEmptyGroups.length > 0) {
-      let groupCursorX = leftX + (block.width - block.totalChildrenWidth) / 2;
+      let groupCursorCross =
+        startCross + (block.crossSpan - block.totalChildrenCrossSpan) / 2;
 
       for (let gIdx = 0; gIdx < nonEmptyGroups.length; gIdx++) {
         const group = nonEmptyGroups[gIdx];
-        let childCursorX = groupCursorX;
+        let childCursorCross = groupCursorCross;
 
         for (let cIdx = 0; cIdx < group.childrenBlocks.length; cIdx++) {
           const childBlock = group.childrenBlocks[cIdx];
-          placeBlock(childBlock, childCursorX);
+          placeBlock(childBlock, childCursorCross);
 
           edges.push({
             id: `edge-child-${group.union.id}-${childBlock.focalPerson.id}`,
             source: group.union.id,
             target: childBlock.focalPerson.id,
-            sourceHandle: 'bottom',
-            targetHandle: 'top',
+            sourceHandle: isTopDown ? 'bottom' : 'right',
+            targetHandle: isTopDown ? 'top' : 'left',
             type: 'default',
             style: {
               stroke: '#8a7265',
@@ -477,18 +631,18 @@ export function computeLayout(
             data: { kind: 'child', unionId: group.union.id },
           });
 
-          childCursorX += childBlock.width + GAP_SIBLING;
+          childCursorCross += childBlock.crossSpan + gapSibling;
         }
 
-        groupCursorX += group.groupWidth + GAP_FAMILY;
+        groupCursorCross += group.groupCrossSpan + gapFamily;
       }
     }
   }
 
-  let rootCursorX = 0;
+  let rootCursorCross = 0;
   for (const rootBlock of rootBlocks) {
-    placeBlock(rootBlock, rootCursorX);
-    rootCursorX += rootBlock.width + GAP_FAMILY;
+    placeBlock(rootBlock, rootCursorCross);
+    rootCursorCross += rootBlock.crossSpan + gapFamily;
   }
 
   return {
