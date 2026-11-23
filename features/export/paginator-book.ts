@@ -34,12 +34,16 @@ interface BookPageTask {
   parentPageIndex: number | null;
   continuationHolderPersonId: string | null;
   allowedTopChildIds: Set<string> | null;
+  rootGeneration: number;
+  lineageRank: number[];
+  horizontalChunkIndex: number;
 }
 
 interface SubtreeSlice {
   includedPersonIds: Set<string>;
   includedUnionIds: Set<string>;
   cutDescendants: Person[];
+  relativeRankByPersonId: Map<string, number[]>;
   maxDepthFound: number;
 }
 
@@ -92,6 +96,27 @@ function addPersonAndSpouses(
   }
 }
 
+function compareLineageRank(a: number[], b: number[]): number {
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    if (a[i] !== b[i]) {
+      return a[i] - b[i];
+    }
+  }
+  return a.length - b.length;
+}
+
+function compareBookPageTasks(a: BookPageTask, b: BookPageTask): number {
+  if (a.rootGeneration !== b.rootGeneration) {
+    return a.rootGeneration - b.rootGeneration;
+  }
+  const rankDiff = compareLineageRank(a.lineageRank, b.lineageRank);
+  if (rankDiff !== 0) {
+    return rankDiff;
+  }
+  return a.horizontalChunkIndex - b.horizontalChunkIndex;
+}
+
 function collectSubtreeSlice(
   graph: FamilyGraph,
   rootPersonId: string,
@@ -101,17 +126,20 @@ function collectSubtreeSlice(
   const includedPersonIds = new Set<string>();
   const includedUnionIds = new Set<string>();
   const visitedLineage = new Set<string>();
+  const relativeRankByPersonId = new Map<string, number[]>();
 
   if (!graph.persons.has(rootPersonId)) {
     return {
       includedPersonIds,
       includedUnionIds,
       cutDescendants: [],
+      relativeRankByPersonId,
       maxDepthFound: 0,
     };
   }
 
   visitedLineage.add(rootPersonId);
+  relativeRankByPersonId.set(rootPersonId, []);
   addPersonAndSpouses(graph, rootPersonId, includedPersonIds, includedUnionIds);
 
   let currentFrontier: Person[] = [];
@@ -125,13 +153,16 @@ function collectSubtreeSlice(
   for (let depth = 0; depth < maxDepth; depth++) {
     const nextFrontier: Person[] = [];
     for (const parent of currentFrontier) {
-      let children = getDirectChildrenOrdered(graph, parent.id);
-      if (depth === 0 && allowedTopChildIds !== null) {
-        children = children.filter((c) => allowedTopChildIds.has(c.id));
-      }
-      for (const child of children) {
+      const parentRelRank = relativeRankByPersonId.get(parent.id) ?? [];
+      const allChildren = getDirectChildrenOrdered(graph, parent.id);
+      for (let childIdx = 0; childIdx < allChildren.length; childIdx++) {
+        const child = allChildren[childIdx];
+        if (depth === 0 && allowedTopChildIds !== null && !allowedTopChildIds.has(child.id)) {
+          continue;
+        }
         if (visitedLineage.has(child.id)) continue;
         visitedLineage.add(child.id);
+        relativeRankByPersonId.set(child.id, [...parentRelRank, childIdx]);
         addPersonAndSpouses(graph, child.id, includedPersonIds, includedUnionIds);
         nextFrontier.push(child);
       }
@@ -158,6 +189,7 @@ function collectSubtreeSlice(
     includedPersonIds,
     includedUnionIds,
     cutDescendants,
+    relativeRankByPersonId,
     maxDepthFound,
   };
 }
@@ -529,16 +561,20 @@ export function computeBookPagination(
       continuations: [],
     });
   } else {
-    const queue: BookPageTask[] = rootPersonIds.map((rootPersonId) => ({
+    const pendingTasks: BookPageTask[] = rootPersonIds.map((rootPersonId, rootIdx) => ({
       rootPersonId,
       parentPageIndex: null,
       continuationHolderPersonId: null,
       allowedTopChildIds: null,
+      rootGeneration: getGeneration(graph, rootPersonId),
+      lineageRank: [rootIdx],
+      horizontalChunkIndex: 0,
     }));
     const scheduledRoots = new Set<string>();
 
-    while (queue.length > 0) {
-      const task = queue.shift()!;
+    while (pendingTasks.length > 0) {
+      pendingTasks.sort(compareBookPageTasks);
+      const task = pendingTasks.shift()!;
       const rootPerson = scopedGraph.persons.get(task.rootPersonId);
       if (!rootPerson) continue;
 
@@ -670,24 +706,31 @@ export function computeBookPagination(
         continuations: [],
       });
 
-      // Enqueue remaining sibling branches first (if depth=1 had to split horizontally)
+      // Enqueue remaining sibling branches with same generation & lineageRank so horizontal chunks stay consecutive
       if (remainingTopChildren.length > 0) {
-        queue.push({
+        pendingTasks.push({
           rootPersonId: rootPerson.id,
           parentPageIndex: currentPageIndex,
           continuationHolderPersonId: rootPerson.id,
           allowedTopChildIds: new Set(remainingTopChildren.map((c) => c.id)),
+          rootGeneration: task.rootGeneration,
+          lineageRank: task.lineageRank,
+          horizontalChunkIndex: task.horizontalChunkIndex + 1,
         });
       }
 
       // Enqueue every cut descendant who has children beyond the current page
       for (const descendant of chosenSlice.cutDescendants) {
         if (!scheduledRoots.has(descendant.id)) {
-          queue.push({
+          const relativeRank = chosenSlice.relativeRankByPersonId.get(descendant.id) ?? [];
+          pendingTasks.push({
             rootPersonId: descendant.id,
             parentPageIndex: currentPageIndex,
             continuationHolderPersonId: descendant.id,
             allowedTopChildIds: null,
+            rootGeneration: getGeneration(graph, descendant.id),
+            lineageRank: [...task.lineageRank, ...relativeRank],
+            horizontalChunkIndex: 0,
           });
         }
       }

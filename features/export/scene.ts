@@ -582,7 +582,7 @@ function emitPersonCardPrimitives(
       Math.round(estimateTextWidthPx(contLabel, 8.5) + 12),
     );
     const badgeX = rect.x + rect.width - badgeW - 6;
-    const badgeY = rect.y + rect.height - 8;
+    const badgeY = rect.y + rect.height + 2;
 
     primitives.push({
       kind: 'rect',
@@ -715,7 +715,7 @@ export function buildExportScene(
               .continuationLabel,
         ),
       );
-    maxY = Math.max(maxY, rect.y + rect.height + (hasContinuation ? 10 : 0));
+    maxY = Math.max(maxY, rect.y + rect.height + (hasContinuation ? 20 : 0));
   }
 
   const offsetX = padding - minX;

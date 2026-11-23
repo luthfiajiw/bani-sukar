@@ -1,6 +1,6 @@
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it, vi } from 'vitest';
-import { buildGraph } from '@/features/family/graph';
+import { buildGraph, getGeneration } from '@/features/family/graph';
 import type { Person, Union } from '@/features/family/types';
 import { DEFAULT_EXPORT_SETTINGS } from '../constants';
 import { computeBookPagination } from '../paginator-book';
@@ -380,6 +380,178 @@ describe('computeBookPagination', () => {
       }
     }
     expect(coveredChildren.size).toBe(8);
+  });
+
+  it('completes all pages of each generation before starting the next generation and keeps horizontal continuations consecutive', () => {
+    const persons: Person[] = [
+      makePerson({ id: 'p-g1-root', fullName: 'Mbah Sukar', gender: 'L' }),
+      makePerson({
+        id: 'p-g1-spouse',
+        fullName: 'Mbah Sadirah',
+        gender: 'P',
+        isBloodLine: false,
+      }),
+    ];
+    const unions: Union[] = [
+      {
+        id: 'u-g1',
+        husbandId: 'p-g1-root',
+        wifeId: 'p-g1-spouse',
+        status: 'married',
+        unionOrder: 1,
+      },
+    ];
+
+    // 6 G2 children, each with 6 G3 children (so G1 splits horizontally AND G2 splits horizontally),
+    // plus G4 children under the first G3 child of G2-1 and G2-2 so G3-rooted pages also occur.
+    for (let i = 1; i <= 6; i++) {
+      const g2Id = `p-g2-${i}`;
+      const g2SpouseId = `p-g2-${i}-spouse`;
+      const g2UnionId = `u-g2-${i}`;
+
+      persons.push(
+        makePerson({
+          id: g2Id,
+          fullName: `Anak G2-${i}`,
+          gender: i % 2 === 0 ? 'P' : 'L',
+          parentUnionId: 'u-g1',
+          birthOrder: i,
+        }),
+        makePerson({
+          id: g2SpouseId,
+          fullName: `Pasangan G2-${i}`,
+          gender: i % 2 === 0 ? 'L' : 'P',
+          isBloodLine: false,
+        }),
+      );
+      unions.push({
+        id: g2UnionId,
+        husbandId: i % 2 === 0 ? g2SpouseId : g2Id,
+        wifeId: i % 2 === 0 ? g2Id : g2SpouseId,
+        status: 'married',
+        unionOrder: 1,
+      });
+
+      for (let j = 1; j <= 6; j++) {
+        const g3Id = `p-g3-${i}-${j}`;
+        persons.push(
+          makePerson({
+            id: g3Id,
+            fullName: `Cucu G3-${i}-${j}`,
+            gender: j % 2 === 0 ? 'P' : 'L',
+            parentUnionId: g2UnionId,
+            birthOrder: j,
+          }),
+        );
+
+        if (i <= 2 && j === 1) {
+          const g3SpouseId = `p-g3-${i}-${j}-spouse`;
+          const g3UnionId = `u-g3-${i}-${j}`;
+          persons.push(
+            makePerson({
+              id: g3SpouseId,
+              fullName: `Pasangan G3-${i}-${j}`,
+              gender: 'P',
+              isBloodLine: false,
+            }),
+          );
+          unions.push({
+            id: g3UnionId,
+            husbandId: g3Id,
+            wifeId: g3SpouseId,
+            status: 'married',
+            unionOrder: 1,
+          });
+          for (let k = 1; k <= 2; k++) {
+            persons.push(
+              makePerson({
+                id: `p-g4-${i}-${j}-${k}`,
+                fullName: `Cicit G4-${i}-${j}-${k}`,
+                gender: 'L',
+                parentUnionId: g3UnionId,
+                birthOrder: k,
+              }),
+            );
+          }
+        }
+      }
+    }
+
+    const graph = buildGraph(persons, unions);
+    const settings = makeBookSettings({
+      paper: {
+        ...DEFAULT_EXPORT_SETTINGS.paper,
+        sizeId: 'A4',
+        orientation: 'portrait',
+        marginMm: 10,
+      },
+      scale: {
+        ...DEFAULT_EXPORT_SETTINGS.scale,
+        minFontPt: 11,
+      },
+    });
+
+    const result = computeBookPagination(graph, settings);
+    expect(result.totalPages).toBeGreaterThan(5);
+
+    const pageGenerations = result.pages.map((p) => getGeneration(graph, p.rootPersonId));
+
+    // Must contain multiple G1 pages, multiple G2 pages, and G3 pages
+    expect(pageGenerations.filter((g) => g === 1).length).toBeGreaterThan(1);
+    expect(pageGenerations.filter((g) => g === 2).length).toBeGreaterThan(1);
+    expect(pageGenerations.filter((g) => g === 3).length).toBeGreaterThanOrEqual(2);
+
+    // Generation sequence across pages must be monotonically non-decreasing (no jumping back to earlier generations)
+    for (let i = 1; i < pageGenerations.length; i++) {
+      expect(pageGenerations[i]).toBeGreaterThanOrEqual(pageGenerations[i - 1]);
+    }
+
+    // Horizontal continuation pages for the same rootPersonId must be strictly consecutive
+    const pageIndicesByRoot = new Map<string, number[]>();
+    result.pages.forEach((page, idx) => {
+      const indices = pageIndicesByRoot.get(page.rootPersonId) ?? [];
+      indices.push(idx);
+      pageIndicesByRoot.set(page.rootPersonId, indices);
+    });
+    for (const indices of pageIndicesByRoot.values()) {
+      for (let i = 1; i < indices.length; i++) {
+        expect(indices[i]).toBe(indices[i - 1] + 1);
+      }
+    }
+
+    // G2 pages must appear in birth order (p-g2-1 ... p-g2-6)
+    const g2RootOrder: string[] = [];
+    for (const page of result.pages) {
+      if (getGeneration(graph, page.rootPersonId) === 2) {
+        if (g2RootOrder[g2RootOrder.length - 1] !== page.rootPersonId) {
+          g2RootOrder.push(page.rootPersonId);
+        }
+      }
+    }
+    expect(g2RootOrder).toEqual([
+      'p-g2-1',
+      'p-g2-2',
+      'p-g2-3',
+      'p-g2-4',
+      'p-g2-5',
+      'p-g2-6',
+    ]);
+
+    // Verify all "-> hal. X" continuation cross-references and full person coverage
+    const pageByNum = new Map(result.pages.map((p) => [p.pageNumber, p]));
+    const coveredPersonIds = new Set<string>();
+    for (const page of result.pages) {
+      for (const pid of page.includedPersonIds) {
+        coveredPersonIds.add(pid);
+      }
+      for (const marker of page.continuations) {
+        const targetPage = pageByNum.get(marker.targetPageNumber);
+        expect(targetPage).toBeDefined();
+        expect(targetPage?.parentPageNumber).toBe(page.pageNumber);
+        expect(targetPage?.rootPersonId).toBe(marker.personId);
+      }
+    }
+    expect(coveredPersonIds.size).toBe(graph.persons.size);
   });
 
   it('returns empty pagination when scope yields zero persons', () => {

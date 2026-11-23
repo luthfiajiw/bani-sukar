@@ -335,6 +335,56 @@ describe('buildExportScene', () => {
     expect(cubicEdge).toBeDefined();
   });
 
+  it('places continuation pill below card footer without overlap or bottom clipping', () => {
+    const person = makePerson({
+      id: 'p-cont',
+      fullName: 'Siti Aminah',
+      gender: 'P',
+      birthPlace: 'Pati',
+      birthDate: '1948-01-01',
+      deathDate: '2014-05-05',
+      isDeceased: true,
+      isBloodLine: true,
+    });
+    const graph = buildGraph([person], []);
+    const layout = computeLayout(graph);
+
+    const scene = buildExportScene(layout, makeSettings(), {
+      outerPaddingPx: 0,
+      continuationLabels: new Map([['p-cont', '→ hal. 7']]),
+    });
+
+    const cardBounds = scene.nodeBounds.get('p-cont');
+    expect(cardBounds).toBeDefined();
+    if (!cardBounds) return;
+
+    const rects = scene.primitives.filter((p): p is SceneRect => p.kind === 'rect');
+    const texts = scene.primitives.filter((p): p is SceneText => p.kind === 'text');
+
+    const badgeText = texts.find((t) => t.text === '→ hal. 7');
+    expect(badgeText).toBeDefined();
+    if (!badgeText) return;
+
+    const badgeRect = rects.find((r) => r.rx === 8 && r.height === 16);
+    expect(badgeRect).toBeDefined();
+    if (!badgeRect) return;
+
+    const footerMetaText = texts.find((t) => t.text.includes('1948'));
+    expect(footerMetaText).toBeDefined();
+    if (!footerMetaText) return;
+
+    // Pill sits below the card bottom border and well below footer text baseline
+    expect(badgeRect.y).toBeGreaterThanOrEqual(cardBounds.y + cardBounds.height);
+    expect(badgeRect.y).toBeGreaterThan(footerMetaText.y);
+
+    // Badge label sits inside the pill rect
+    expect(badgeText.y).toBeGreaterThan(badgeRect.y);
+    expect(badgeText.y).toBeLessThan(badgeRect.y + badgeRect.height);
+
+    // Pill is not clipped by scene.height even with outerPaddingPx: 0
+    expect(badgeRect.y + badgeRect.height).toBeLessThanOrEqual(scene.height);
+  });
+
   it('uses monochrome hollow circle for deceased vs solid circle for alive', () => {
     const { layout } = makeSampleFamily();
     const scene = buildExportScene(layout, makeSettings({ theme: 'monochrome' }));
