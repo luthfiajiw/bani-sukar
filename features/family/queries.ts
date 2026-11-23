@@ -20,6 +20,7 @@ import type {
   RelationEditorData,
   RelationUnionOption,
   TreeLayoutResult,
+  TreeOrientation,
   Union,
 } from './types';
 
@@ -152,7 +153,8 @@ export async function getFamilyData(): Promise<{
 }
 
 export async function getLayoutData(
-  branchId?: string | null
+  branchId?: string | null,
+  orientation: TreeOrientation = 'TOP_DOWN',
 ): Promise<TreeLayoutResult> {
   'use cache';
   cacheLife('max');
@@ -160,7 +162,10 @@ export async function getLayoutData(
 
   const { persons, unions } = await getFamilyData();
   const graph = buildGraph(persons, unions);
-  return computeLayout(graph, { branchId: branchId ?? null });
+  return computeLayout(graph, {
+    branchId: branchId ?? null,
+    orientation,
+  });
 }
 
 function resolveFocalPersonId(

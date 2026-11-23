@@ -3,11 +3,13 @@ import { SiteHeader } from '@/components/site-header';
 import { FamilyCanvas } from '@/components/tree/family-canvas';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLayoutData } from '@/features/family/queries';
+import type { TreeOrientation } from '@/features/family/types';
 
 interface HomePageProps {
   searchParams: Promise<{
     cabang?: string | string[];
     fokus?: string | string[];
+    arah?: string | string[];
   }>;
 }
 
@@ -56,13 +58,20 @@ async function TreeContent({ searchParams }: HomePageProps) {
     typeof resolved.fokus === 'string' && resolved.fokus.trim().length > 0
       ? resolved.fokus.trim()
       : null;
+  const rawArah =
+    typeof resolved.arah === 'string' ? resolved.arah.trim() : '';
+  const orientation: TreeOrientation =
+    rawArah === 'LEFT_RIGHT' || rawArah.toLowerCase() === 'horizontal'
+      ? 'LEFT_RIGHT'
+      : 'TOP_DOWN';
 
-  const layout = await getLayoutData(cabang);
+  const layout = await getLayoutData(cabang, orientation);
 
   return (
     <FamilyCanvas
       layout={layout}
       selectedBranchId={cabang}
+      orientation={orientation}
       initialFocusId={fokus}
     />
   );

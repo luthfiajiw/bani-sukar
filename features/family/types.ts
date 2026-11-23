@@ -1,5 +1,6 @@
 export type Gender = 'L' | 'P';
 export type UnionStatus = 'married' | 'divorced' | 'widowed';
+export type TreeOrientation = 'TOP_DOWN' | 'LEFT_RIGHT';
 
 export interface Person {
   id: string;

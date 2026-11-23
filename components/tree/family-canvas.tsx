@@ -23,6 +23,7 @@ import { H, W } from '@/features/family/layout';
 import type {
   PersonNodeData,
   TreeLayoutResult,
+  TreeOrientation,
   UnionNodeData,
 } from '@/features/family/types';
 
@@ -36,12 +37,14 @@ const nodeTypes = {
 interface FamilyCanvasProps {
   layout: TreeLayoutResult;
   selectedBranchId: string | null;
+  orientation: TreeOrientation;
   initialFocusId: string | null;
 }
 
 function FamilyCanvasInner({
   layout,
   selectedBranchId,
+  orientation,
   initialFocusId,
 }: FamilyCanvasProps) {
   const router = useRouter();
@@ -50,7 +53,9 @@ function FamilyCanvasInner({
   const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const prevBranchRef = React.useRef<string | null>(selectedBranchId);
+  const prevViewKeyRef = React.useRef<string>(
+    `${selectedBranchId ?? ''}:${orientation}`,
+  );
 
   const focusNode = React.useCallback(
     (personId: string) => {
@@ -96,8 +101,9 @@ function FamilyCanvasInner({
   }, [initialFocusId, focusNode]);
 
   React.useEffect(() => {
-    if (prevBranchRef.current !== selectedBranchId) {
-      prevBranchRef.current = selectedBranchId;
+    const nextKey = `${selectedBranchId ?? ''}:${orientation}`;
+    if (prevViewKeyRef.current !== nextKey) {
+      prevViewKeyRef.current = nextKey;
       if (!initialFocusId) {
         const timer = setTimeout(() => {
           fitView({ padding: 0.18, duration: 400 });
@@ -105,18 +111,23 @@ function FamilyCanvasInner({
         return () => clearTimeout(timer);
       }
     }
-  }, [selectedBranchId, initialFocusId, fitView]);
+  }, [selectedBranchId, orientation, initialFocusId, fitView]);
 
   const handleSelectPerson = React.useCallback(
     (personId: string) => {
       const found = focusNode(personId);
       if (!found) {
-        router.replace(`/?fokus=${encodeURIComponent(personId)}`, {
+        const params = new URLSearchParams();
+        if (orientation === 'LEFT_RIGHT') {
+          params.set('arah', 'LEFT_RIGHT');
+        }
+        params.set('fokus', personId);
+        router.replace(`/?${params.toString()}`, {
           scroll: false,
         });
       }
     },
-    [focusNode, router],
+    [focusNode, orientation, router],
   );
 
   const handleFitView = React.useCallback(() => {
@@ -184,6 +195,7 @@ function FamilyCanvasInner({
       <BranchFilter
         branches={layout.branches}
         selectedBranchId={selectedBranchId}
+        orientation={orientation}
         persons={layout.persons}
         onSelectPerson={handleSelectPerson}
         onFitView={handleFitView}

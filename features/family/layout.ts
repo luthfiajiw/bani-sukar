@@ -10,6 +10,7 @@ import type {
   Person,
   PersonNodeData,
   TreeLayoutResult,
+  TreeOrientation,
   Union,
   UnionNodeData,
 } from './types';
@@ -28,7 +29,7 @@ export interface ComputeLayoutOptions {
   subtreeRootPersonId?: string | null;
   minGeneration?: number;
   maxGeneration?: number;
-  orientation?: 'TOP_DOWN' | 'LEFT_RIGHT';
+  orientation?: TreeOrientation;
   cardWidth?: number;
   cardHeight?: number;
   cardSizeByPersonId?: Map<string, { width: number; height: number }>;

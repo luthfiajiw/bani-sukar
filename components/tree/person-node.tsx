@@ -39,10 +39,16 @@ function PersonNodeComponent({ data, selected }: NodeProps<PersonFlowNode>) {
           'border-accent ring-2 ring-accent ring-offset-2 ring-offset-background shadow-md animate-pulse',
       )}
     >
-      {/* Hidden attachment handles */}
+      {/* Hidden attachment handles (source + target on each side for TOP_DOWN & LEFT_RIGHT) */}
       <Handle
         id="top"
         type="target"
+        position={Position.Top}
+        className={hiddenHandleClass}
+      />
+      <Handle
+        id="top"
+        type="source"
         position={Position.Top}
         className={hiddenHandleClass}
       />
@@ -53,8 +59,21 @@ function PersonNodeComponent({ data, selected }: NodeProps<PersonFlowNode>) {
         className={hiddenHandleClass}
       />
       <Handle
+        id="bottom"
+        type="target"
+        position={Position.Bottom}
+        className={hiddenHandleClass}
+      />
+      <Handle
         id="left"
         type="source"
+        position={Position.Left}
+        style={horizontalHandleStyle}
+        className={hiddenHandleClass}
+      />
+      <Handle
+        id="left"
+        type="target"
         position={Position.Left}
         style={horizontalHandleStyle}
         className={hiddenHandleClass}
@@ -69,6 +88,13 @@ function PersonNodeComponent({ data, selected }: NodeProps<PersonFlowNode>) {
       <Handle
         id="right"
         type="source"
+        position={Position.Right}
+        style={horizontalHandleStyle}
+        className={hiddenHandleClass}
+      />
+      <Handle
+        id="right"
+        type="target"
         position={Position.Right}
         style={horizontalHandleStyle}
         className={hiddenHandleClass}

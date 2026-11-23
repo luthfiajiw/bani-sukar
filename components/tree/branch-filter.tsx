@@ -3,14 +3,16 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Crosshair, GitBranch, Printer } from 'lucide-react';
-import type { Person } from '@/features/family/types';
+import { ArrowDown, ArrowRight, Crosshair, GitBranch, Printer } from 'lucide-react';
+import type { Person, TreeOrientation } from '@/features/family/types';
 import { Button } from '@/components/ui/button';
 import { TreeSearch } from '@/components/tree/tree-search';
+import { cn } from '@/lib/utils';
 
 interface BranchFilterProps {
   branches: Array<{ id: string; fullName: string; order: number }>;
   selectedBranchId: string | null;
+  orientation: TreeOrientation;
   persons: Person[];
   onSelectPerson: (personId: string) => void;
   onFitView: () => void;
@@ -26,6 +28,7 @@ const GENERATION_PILLS = [
 export function BranchFilter({
   branches,
   selectedBranchId,
+  orientation,
   persons,
   onSelectPerson,
   onFitView,
@@ -48,6 +51,33 @@ export function BranchFilter({
       scroll: false,
     });
   };
+
+  const handleOrientationChange = (nextOrientation: TreeOrientation) => {
+    if (nextOrientation === orientation) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextOrientation === 'LEFT_RIGHT') {
+      params.set('arah', 'LEFT_RIGHT');
+    } else {
+      params.delete('arah');
+    }
+    params.delete('fokus');
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  };
+
+  const printHref = React.useMemo(() => {
+    const params = new URLSearchParams();
+    if (selectedBranchId) {
+      params.set('cabang', selectedBranchId);
+    }
+    if (orientation === 'LEFT_RIGHT') {
+      params.set('arah', 'LEFT_RIGHT');
+    }
+    const qs = params.toString();
+    return qs ? `/cetak?${qs}` : '/cetak';
+  }, [selectedBranchId, orientation]);
 
   return (
     <div className="border-b border-border bg-card/95 py-2.5 backdrop-blur-xs">
@@ -76,11 +106,11 @@ export function BranchFilter({
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <TreeSearch
               persons={persons}
               onSelectPerson={onSelectPerson}
-              className="flex-1 sm:flex-initial"
+              className="min-w-[160px] flex-1 sm:flex-initial"
             />
             <Button
               type="button"
@@ -93,6 +123,42 @@ export function BranchFilter({
               <Crosshair className="size-3.5 text-primary" />
               <span>Pusat</span>
             </Button>
+            <div
+              role="group"
+              aria-label="Orientasi bagan"
+              className="inline-flex h-8.5 shrink-0 items-center rounded-md border border-input bg-background p-0.5 shadow-xs"
+            >
+              <button
+                type="button"
+                onClick={() => handleOrientationChange('TOP_DOWN')}
+                aria-pressed={orientation === 'TOP_DOWN'}
+                title="Orientasi Vertikal (Atas ke Bawah)"
+                className={cn(
+                  'inline-flex h-7 cursor-pointer items-center gap-1 rounded-sm px-2.5 text-xs font-medium transition-colors',
+                  orientation === 'TOP_DOWN'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
+                )}
+              >
+                <ArrowDown className="size-3.5" />
+                <span>Vertikal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOrientationChange('LEFT_RIGHT')}
+                aria-pressed={orientation === 'LEFT_RIGHT'}
+                title="Orientasi Horizontal (Kiri ke Kanan)"
+                className={cn(
+                  'inline-flex h-7 cursor-pointer items-center gap-1 rounded-sm px-2.5 text-xs font-medium transition-colors',
+                  orientation === 'LEFT_RIGHT'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
+                )}
+              >
+                <ArrowRight className="size-3.5" />
+                <span>Horizontal</span>
+              </button>
+            </div>
             <Button
               asChild
               variant="outline"
@@ -100,13 +166,7 @@ export function BranchFilter({
               className="h-8.5 shrink-0 gap-1.5 px-3 text-xs font-medium"
               title="Ekspor ke PDF, PNG, ZIP, atau SVG siap cetak"
             >
-              <Link
-                href={
-                  selectedBranchId
-                    ? `/cetak?cabang=${encodeURIComponent(selectedBranchId)}`
-                    : '/cetak'
-                }
-              >
+              <Link href={printHref}>
                 <Printer className="size-3.5 text-primary" />
                 <span>Ekspor / Cetak</span>
               </Link>

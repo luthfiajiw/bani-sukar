@@ -46,8 +46,20 @@ function UnionNodeComponent({ data }: NodeProps<UnionFlowNode>) {
         className={hiddenHandleClass}
       />
       <Handle
+        id="left"
+        type="source"
+        position={Position.Left}
+        className={hiddenHandleClass}
+      />
+      <Handle
         id="right"
         type="target"
+        position={Position.Right}
+        className={hiddenHandleClass}
+      />
+      <Handle
+        id="right"
+        type="source"
         position={Position.Right}
         className={hiddenHandleClass}
       />
@@ -58,8 +70,20 @@ function UnionNodeComponent({ data }: NodeProps<UnionFlowNode>) {
         className={hiddenHandleClass}
       />
       <Handle
+        id="top"
+        type="source"
+        position={Position.Top}
+        className={hiddenHandleClass}
+      />
+      <Handle
         id="bottom"
         type="source"
+        position={Position.Bottom}
+        className={hiddenHandleClass}
+      />
+      <Handle
+        id="bottom"
+        type="target"
         position={Position.Bottom}
         className={hiddenHandleClass}
       />
