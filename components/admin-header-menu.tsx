@@ -98,14 +98,14 @@ export function AdminHeaderMenu({
 
         <SheetClose asChild>
           <Link
-            href="/admin/anggota"
+            href="/admin/pengguna"
             className={cn(
               buttonVariants({ variant: "outline" }),
               "w-full justify-center",
             )}
           >
-            <ShieldCheck className="size-4 text-primary" />
-            <span>Direktori Admin</span>
+            <Users className="size-4 text-primary" />
+            <span>Kelola Admin</span>
           </Link>
         </SheetClose>
 
