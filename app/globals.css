@@ -67,7 +67,3 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
-
-.react-flow__attribution {
-  display: none !important;
-}

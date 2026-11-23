@@ -205,7 +205,7 @@ function FamilyCanvasInner({
           minZoom={0.15}
           maxZoom={1.8}
           style={{ backgroundColor: 'var(--background)' }}
-          proOptions={{ hideAttribution: true }}
+          attributionPosition="top-right"
         >
           <Background
             variant={BackgroundVariant.Dots}
