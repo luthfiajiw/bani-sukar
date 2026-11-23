@@ -18,13 +18,6 @@ interface BranchFilterProps {
   onFitView: () => void;
 }
 
-const GENERATION_PILLS = [
-  { gen: 1, label: 'G1 Leluhur', dotClass: 'bg-primary' },
-  { gen: 2, label: 'G2 Anak', dotClass: 'bg-accent' },
-  { gen: 3, label: 'G3 Cucu', dotClass: 'bg-[#795746]' },
-  { gen: 4, label: 'G4 Cicit', dotClass: 'bg-[#2d4030]' },
-];
-
 export function BranchFilter({
   branches,
   selectedBranchId,
@@ -172,19 +165,6 @@ export function BranchFilter({
               </Link>
             </Button>
           </div>
-        </div>
-
-        {/* Right: Generation Legend Pills */}
-        <div className="hidden flex-wrap items-center gap-1.5 xl:flex">
-          {GENERATION_PILLS.map((item) => (
-            <span
-              key={item.gen}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-[11px] font-medium text-secondary-foreground"
-            >
-              <span className={`size-2 rounded-full ${item.dotClass}`} />
-              {item.label}
-            </span>
-          ))}
         </div>
       </div>
     </div>

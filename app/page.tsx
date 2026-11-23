@@ -23,12 +23,6 @@ function TreeSkeleton() {
             <Skeleton className="h-8 w-64" />
             <Skeleton className="h-8 w-20" />
           </div>
-          <div className="hidden items-center gap-2 xl:flex">
-            <Skeleton className="h-6 w-24 rounded-full" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-          </div>
         </div>
       </div>
       <div className="relative flex h-[calc(100dvh-120px)] min-h-[500px] items-center justify-center bg-background">
